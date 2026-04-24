@@ -54,11 +54,9 @@ async function submitLoan(loanData) {
       await login(page);
     }
 
-    await fillLoanForm(page, loanData);
-    const confirmationId = (await extractConfirmationId(page)).trim();
     await saveSession(context);
 
-    return { success: true, confirmationId };
+    return { success: true, message: 'Login successful' };
   } finally {
     await browser.close();
   }
