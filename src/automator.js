@@ -5,10 +5,11 @@ const { PORTAL_URL, PORTAL_USERNAME, PORTAL_PASSWORD } = process.env;
 
 async function login(page) {
   await page.goto(`${PORTAL_URL}/login`);
+  await page.waitForLoadState('networkidle');
   await page.fill('input[placeholder="Email Address"]', PORTAL_USERNAME);
   await page.fill('input[placeholder="Account Password"]', PORTAL_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(`${PORTAL_URL}/`, { timeout: 15_000 });
+  await page.getByText('LOG IN').click();
+  await page.waitForURL(`${PORTAL_URL}/`, { timeout: 20_000 });
 }
 
 async function isLoggedIn(page) {
