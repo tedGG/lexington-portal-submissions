@@ -9,7 +9,7 @@ async function login(page) {
   await page.fill('input[placeholder="Email Address"]', PORTAL_USERNAME);
   await page.fill('input[placeholder="Account Password"]', PORTAL_PASSWORD);
   await page.getByText('LOG IN').click();
-  await page.waitForURL(`${PORTAL_URL}/`, { timeout: 20_000 });
+  await page.waitForFunction(() => !window.location.href.includes('/login'), { timeout: 20_000 });
 }
 
 async function isLoggedIn(page) {
