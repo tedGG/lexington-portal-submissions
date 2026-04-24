@@ -5,14 +5,14 @@ const { PORTAL_URL, PORTAL_USERNAME, PORTAL_PASSWORD } = process.env;
 
 async function login(page) {
   await page.goto(`${PORTAL_URL}/login`);
-  await page.fill('#username', PORTAL_USERNAME);
-  await page.fill('#password', PORTAL_PASSWORD);
-  await page.click('#login-button');
-  await page.waitForURL(`${PORTAL_URL}/dashboard`, { timeout: 15_000 });
+  await page.fill('input[placeholder="Email Address"]', PORTAL_USERNAME);
+  await page.fill('input[placeholder="Account Password"]', PORTAL_PASSWORD);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(`${PORTAL_URL}/`, { timeout: 15_000 });
 }
 
 async function isLoggedIn(page) {
-  return page.locator('#user-menu').isVisible().catch(() => false);
+  return !page.url().includes('/login');
 }
 
 async function fillLoanForm(page, loanData) {
@@ -45,7 +45,7 @@ async function submitLoan(loanData) {
     const page = await context.newPage();
 
     if (sessionLoaded) {
-      await page.goto(PORTAL_URL);
+      await page.goto(`${PORTAL_URL}/`);
       if (!(await isLoggedIn(page))) {
         clearSession();
         await login(page);
