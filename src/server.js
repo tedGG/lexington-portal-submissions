@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { submitLoan } = require('./automator');
+const { submitTestForm } = require('./test-automator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,23 @@ app.post('/submit-loan', requireApiKey, async (req, res) => {
   } catch (err) {
     console.error('Loan submission failed:', err);
     res.status(500).json({ error: 'Loan submission failed', details: err.message });
+  }
+});
+
+app.post('/test-submit', requireApiKey, async (req, res) => {
+  const data = req.body ?? {};
+  const required = ['firstName', 'lastName', 'email', 'phone', 'address'];
+  const missing = required.filter(f => data[f] == null);
+  if (missing.length) {
+    return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+  }
+
+  try {
+    const result = await submitTestForm(data);
+    res.json(result);
+  } catch (err) {
+    console.error('Test submission failed:', err);
+    res.status(500).json({ error: 'Test submission failed', details: err.message });
   }
 });
 
