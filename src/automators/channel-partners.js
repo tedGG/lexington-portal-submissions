@@ -281,27 +281,11 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
   });
 
   try {
-    const sessionLoaded = await loadSession(context, SESSION_KEY);
-    console.log(`Session loaded: ${sessionLoaded}`);
     const page = await context.newPage();
-
-    if (sessionLoaded) {
-      await page.goto(`${CHANNEL_PARTNERS_URL}/`);
-      await page.waitForLoadState('networkidle');
-      const loggedIn = await isLoggedIn(page);
-      console.log(`Is logged in: ${loggedIn}, URL: ${page.url()}`);
-      if (!loggedIn) {
-        clearSession(SESSION_KEY);
-        await login(page, context);
-      }
-    } else {
-      await login(page, context);
-    }
+    await login(page, context);
 
     await page.waitForLoadState('networkidle');
     console.log(`Page URL after auth: ${page.url()}`);
-    await page.screenshot({ path: '/tmp/channel-partners-after-login.png', fullPage: true });
-    await saveSession(context, SESSION_KEY);
 
     await page.getByRole('button', { name: /new application/i }).click();
     await page.waitForLoadState('networkidle');
