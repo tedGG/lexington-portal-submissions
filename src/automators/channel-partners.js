@@ -299,7 +299,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
     await page.screenshot({ path: '/tmp/channel-partners-after-login.png', fullPage: true });
     await saveSession(context, SESSION_KEY);
 
-    await page.getByText('NEW APPLICATION').click();
+    await page.getByRole('button', { name: /new application/i }).click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(5000);
 

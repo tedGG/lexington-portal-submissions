@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { randomUUID } = require('crypto');
+const { AsyncLocalStorage } = require('async_hooks');
 const headway = require('./automators/headway');
 const channelPartners = require('./automators/channel-partners');
 const { submitTestForm } = require('./test-automator');
@@ -12,6 +13,14 @@ const API_SECRET_KEY = process.env.API_SECRET_KEY;
 app.use(express.json());
 
 const jobs = new Map();
+const jobLogStorage = new AsyncLocalStorage();
+
+const originalLog = console.log;
+console.log = (...args) => {
+  const store = jobLogStorage.getStore();
+  if (store) store.push(args.map(String).join(' '));
+  originalLog(...args);
+};
 
 function requireApiKey(req, res, next) {
   if (req.headers['x-api-key'] !== API_SECRET_KEY) {
@@ -28,14 +37,17 @@ function createLoanHandler(automator) {
     }
 
     const jobId = randomUUID();
-    jobs.set(jobId, { status: 'pending' });
+    const logs = [];
+    jobs.set(jobId, { status: 'pending', logs });
 
-    automator.submitLoan(businessData, contact1Data, contact2Data)
-      .then(result => jobs.set(jobId, { status: 'done', result }))
-      .catch(err => {
-        console.error('Loan submission failed:', err);
-        jobs.set(jobId, { status: 'error', error: err.message });
-      });
+    jobLogStorage.run(logs, () => {
+      automator.submitLoan(businessData, contact1Data, contact2Data)
+        .then(result => jobs.set(jobId, { status: 'done', result, logs }))
+        .catch(err => {
+          console.error('Loan submission failed:', err);
+          jobs.set(jobId, { status: 'error', error: err.message, logs });
+        });
+    });
 
     res.status(202).json({ jobId });
   };
