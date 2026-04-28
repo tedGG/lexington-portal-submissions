@@ -272,7 +272,7 @@ async function fillApplicationForm(page, data) {
 
 async function submitLoan(businessData, contact1Data, contact2Data) {
   const browser = await chromium.launch({
-    headless: false,
+    headless: true,
     slowMo: 800,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
   });
