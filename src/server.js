@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const { randomUUID } = require('crypto');
-const { submitLoan } = require('./automator');
+const headway = require('./automators/headway');
+const channelPartners = require('./automators/channel-partners');
 const { submitTestForm } = require('./test-automator');
 
 const app = express();
@@ -19,32 +20,39 @@ function requireApiKey(req, res, next) {
   next();
 }
 
+function createLoanHandler(automator) {
+  return (req, res) => {
+    const { businessData, contact1Data, contact2Data } = req.body ?? {};
+    if (!businessData) {
+      return res.status(400).json({ error: 'Missing businessData in request body' });
+    }
+
+    if (!businessData.demo) {
+      const required = ['applicantName', 'email', 'loanAmount', 'loanTerm'];
+      const missing = required.filter(f => businessData[f] == null);
+      if (missing.length) {
+        return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+      }
+    }
+
+    const jobId = randomUUID();
+    jobs.set(jobId, { status: 'pending' });
+
+    automator.submitLoan(businessData, contact1Data, contact2Data)
+      .then(result => jobs.set(jobId, { status: 'done', result }))
+      .catch(err => {
+        console.error('Loan submission failed:', err);
+        jobs.set(jobId, { status: 'error', error: err.message });
+      });
+
+    res.status(202).json({ jobId });
+  };
+}
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.post('/submit-loan', requireApiKey, (req, res) => {
-  const { loanData } = req.body ?? {};
-  if (!loanData) {
-    return res.status(400).json({ error: 'Missing loanData in request body' });
-  }
-
-  const required = ['applicantName', 'email', 'loanAmount', 'loanTerm'];
-  const missing = required.filter(f => loanData[f] == null);
-  if (missing.length) {
-    return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
-  }
-
-  const jobId = randomUUID();
-  jobs.set(jobId, { status: 'pending' });
-
-  submitLoan(loanData)
-    .then(result => jobs.set(jobId, { status: 'done', result }))
-    .catch(err => {
-      console.error('Loan submission failed:', err);
-      jobs.set(jobId, { status: 'error', error: err.message });
-    });
-
-  res.status(202).json({ jobId });
-});
+app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway));
+app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners));
 
 app.get('/job/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);

@@ -1,26 +1,44 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
 
 (async () => {
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
-  await page.goto('https://partners-fe.headwaycapital.com/login');
+  const context = await browser.newContext();
+
+  const sessionFile = '/tmp/session-channel-partners.json';
+  if (fs.existsSync(sessionFile)) {
+    const { cookies } = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+    await context.addCookies(cookies);
+    console.log('Session cookies loaded');
+  }
+
+  const page = await context.newPage();
+  await page.goto('https://channelpconnect.com/login');
   await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(2000);
 
-  const fields = await page.evaluate(() =>
-    [...document.querySelectorAll('input, button, select, textarea')].map(el => ({
-      tag: el.tagName.toLowerCase(),
-      id: el.id || null,
-      name: el.name || null,
-      type: el.type || null,
-      placeholder: el.placeholder || null,
-      class: el.className || null,
-      ariaLabel: el.getAttribute('aria-label') || null,
-      text: el.innerText?.trim() || null,
-    }))
-  );
+  const elements = await page.evaluate((email) => {
+    return [...document.querySelectorAll('*')].filter(el => {
+      const text = el.innerText?.trim();
+      return text && text.includes(email) && el.children.length === 0;
+    }).map(el => {
+      const rect = el.getBoundingClientRect();
+      return {
+        tag: el.tagName.toLowerCase(),
+        id: el.id || null,
+        class: el.className || null,
+        text: el.innerText?.trim() || null,
+        role: el.getAttribute('role') || null,
+        ariaLabel: el.getAttribute('aria-label') || null,
+        dataAttrs: [...el.attributes]
+          .filter(a => a.name.startsWith('data-'))
+          .reduce((acc, a) => ({ ...acc, [a.name]: a.value }), {}),
+        visible: rect.width > 0 && rect.height > 0,
+      };
+    });
+  }, 'uw@lexingtoncapitalholdings.com');
 
-  console.log(JSON.stringify(fields, null, 2));
+  console.log(JSON.stringify(elements, null, 2));
   await page.screenshot({ path: 'login-screenshot.png', fullPage: true });
-  console.log('Screenshot saved to login-screenshot.png');
   await browser.close();
 })();

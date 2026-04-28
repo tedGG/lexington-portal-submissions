@@ -1,15 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
-const SESSION_FILE = path.join('/tmp', 'portal-session.json');
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-async function loadSession(context) {
-  if (!fs.existsSync(SESSION_FILE)) return false;
+function sessionPath(key) {
+  return path.join('/tmp', `session-${key}.json`);
+}
+
+async function loadSession(context, key) {
+  const file = sessionPath(key);
+  if (!fs.existsSync(file)) return false;
   try {
-    const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (Date.now() > data.expiresAt) {
-      fs.unlinkSync(SESSION_FILE);
+      fs.unlinkSync(file);
       return false;
     }
     await context.addCookies(data.cookies);
@@ -19,14 +23,15 @@ async function loadSession(context) {
   }
 }
 
-async function saveSession(context) {
+async function saveSession(context, key) {
   const cookies = await context.cookies();
   const data = { cookies, expiresAt: Date.now() + SESSION_TTL_MS };
-  fs.writeFileSync(SESSION_FILE, JSON.stringify(data));
+  fs.writeFileSync(sessionPath(key), JSON.stringify(data));
 }
 
-function clearSession() {
-  if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+function clearSession(key) {
+  const file = sessionPath(key);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
 }
 
 module.exports = { loadSession, saveSession, clearSession };

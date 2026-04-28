@@ -41,7 +41,8 @@ async function extractConfirmationId(page) {
 
 async function submitLoan(loanData) {
   const browser = await chromium.launch({
-    headless: true,
+    headless: false,
+    slowMo: 500,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   const context = await browser.newContext({
@@ -62,6 +63,7 @@ async function submitLoan(loanData) {
       await login(page);
     }
 
+    await page.screenshot({ path: '/tmp/after-login.png', fullPage: true });
     await saveSession(context);
 
     return { success: true, message: 'Login successful' };
