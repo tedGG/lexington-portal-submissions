@@ -27,14 +27,6 @@ function createLoanHandler(automator) {
       return res.status(400).json({ error: 'Missing businessData in request body' });
     }
 
-    if (!businessData.demo) {
-      const required = ['applicantName', 'email', 'loanAmount', 'loanTerm'];
-      const missing = required.filter(f => businessData[f] == null);
-      if (missing.length) {
-        return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
-      }
-    }
-
     const jobId = randomUUID();
     jobs.set(jobId, { status: 'pending' });
 
