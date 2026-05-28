@@ -6,12 +6,9 @@ const { randomUUID } = require('crypto');
 const { URLSearchParams } = require('url');
 
 const {
-  SF_LOGIN_URL = 'https://login.salesforce.com',
+  SF_LOGIN_URL = 'https://test.salesforce.com',
   SF_CLIENT_ID,
   SF_CLIENT_SECRET,
-  SF_USERNAME,
-  SF_PASSWORD,
-  SF_SECURITY_TOKEN = '',
 } = process.env;
 
 let cachedToken = null;
@@ -45,11 +42,9 @@ function post(url, body) {
 
 async function authenticate() {
   const params = new URLSearchParams({
-    grant_type: 'password',
+    grant_type: 'client_credentials',
     client_id: SF_CLIENT_ID,
     client_secret: SF_CLIENT_SECRET,
-    username: SF_USERNAME,
-    password: `${SF_PASSWORD}${SF_SECURITY_TOKEN}`,
   });
 
   const { status, body } = await post(`${SF_LOGIN_URL}/services/oauth2/token`, params.toString());
