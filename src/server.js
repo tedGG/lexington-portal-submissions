@@ -31,7 +31,7 @@ function requireApiKey(req, res, next) {
 
 function createLoanHandler(automator) {
   return (req, res) => {
-    const { businessData, contact1Data, contact2Data } = req.body ?? {};
+    const { businessData, contact1Data, contact2Data, files } = req.body ?? {};
     if (!businessData) {
       return res.status(400).json({ error: 'Missing businessData in request body' });
     }
@@ -41,7 +41,7 @@ function createLoanHandler(automator) {
     jobs.set(jobId, { status: 'pending', logs });
 
     jobLogStorage.run(logs, () => {
-      automator.submitLoan(businessData, contact1Data, contact2Data)
+      automator.submitLoan(businessData, contact1Data, contact2Data, files)
         .then(result => jobs.set(jobId, { status: 'done', result, logs }))
         .catch(err => {
           console.error('Loan submission failed:', err);
