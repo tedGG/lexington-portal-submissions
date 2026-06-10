@@ -14,8 +14,15 @@ async function login(page, context) {
   await page.waitForSelector('#username', { timeout: 30_000 });
   console.log('Login form ready.');
 
-  await page.fill('#username', FUNDOMATE_USERNAME);
-  await page.fill('#password', FUNDOMATE_PASSWORD);
+  await page.click('#username');
+  await page.type('#username', FUNDOMATE_USERNAME, { delay: 80 });
+  await page.click('#password');
+  await page.type('#password', FUNDOMATE_PASSWORD, { delay: 80 });
+
+  // wait for button to be enabled by React after input
+  await page.waitForSelector('button[type="submit"]:not([disabled])', { timeout: 10_000 });
+  console.log('Submit button enabled.');
+
   await page.click('button[type="submit"]');
   console.log('Credentials submitted.');
 
