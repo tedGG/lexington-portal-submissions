@@ -29,8 +29,8 @@ async function login(page, context) {
   await page.waitForTimeout(5000);
   console.log(`URL 5s after submit: ${page.url()}`);
 
-  const errorMsg = await page.$eval('[class*="error"], [class*="alert"], #kc-feedback-text', el => el.textContent.trim()).catch(() => null);
-  if (errorMsg) console.log(`Login error on page: ${errorMsg}`);
+  const pageText = await page.$eval('body', el => el.innerText.trim().slice(0, 800)).catch(() => null);
+  console.log(`Page body after submit: ${pageText}`);
 
   await page.waitForFunction(
     () => window.location.hostname.includes('partner.fundomate.com'),
