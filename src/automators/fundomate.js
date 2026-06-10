@@ -7,18 +7,21 @@ const { FUNDOMATE_URL, FUNDOMATE_USERNAME, FUNDOMATE_PASSWORD } = process.env;
 
 async function login(page, context) {
   await context.clearCookies();
-  await page.goto(`${FUNDOMATE_URL}/login`);
-  await page.waitForLoadState('networkidle');
+  console.log('Navigating to login...');
+  await page.goto(`${FUNDOMATE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  console.log(`Login page loaded. URL: ${page.url()}`);
 
-  await page.waitForSelector('#username', { timeout: 15_000 });
+  await page.waitForSelector('#username', { timeout: 30_000 });
+  console.log('Login form ready.');
 
   await page.fill('#username', FUNDOMATE_USERNAME);
   await page.fill('#password', FUNDOMATE_PASSWORD);
   await page.click('button[type="submit"]');
+  console.log('Credentials submitted.');
 
   await page.waitForFunction(
     () => window.location.hostname.includes('partner.fundomate.com'),
-    { timeout: 20_000 }
+    { timeout: 60_000 }
   );
   console.log(`Logged in. URL: ${page.url()}`);
 }
@@ -37,8 +40,8 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     const page = await context.newPage();
     await login(page, context);
 
-    await page.goto(`${FUNDOMATE_URL}/merchants/create`);
-    await page.waitForLoadState('networkidle');
+    await page.goto(`${FUNDOMATE_URL}/merchants/create`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForLoadState('networkidle', { timeout: 60_000 });
     console.log(`Navigated to create merchant page. URL: ${page.url()}`);
 
     const businessData = businessData_?.demo ? TEST_DATA.business : businessData_;
