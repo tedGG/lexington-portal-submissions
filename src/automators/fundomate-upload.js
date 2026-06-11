@@ -18,6 +18,12 @@ const TEST_FILES = [
   { fileName: 'test-application.pdf', category: 'Application' },
 ];
 
+function getMimeType(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  const map = { '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.heic': 'image/heic', '.heif': 'image/heic', '.csv': 'text/csv' };
+  return map[ext] || 'application/octet-stream';
+}
+
 function getTabId(category) {
   const cat = (category || '').toLowerCase();
   if (cat.includes('bank')) return 'bank-statements';
@@ -52,7 +58,11 @@ async function uploadFiles(page, files, demo = false) {
       await page.waitForTimeout(400);
       console.log(`Selected tab "${tabId}" for: ${file.fileName}`);
 
-      await page.locator('input[data-testid="upload_file"]').setInputFiles(tmpPath);
+      await page.locator('input[data-testid="upload_file"]').setInputFiles({
+        name: file.fileName,
+        mimeType: getMimeType(file.fileName),
+        buffer: fs.readFileSync(tmpPath),
+      });
       console.log(`File input set: ${file.fileName}`);
 
       // wait for the file to appear in the list
