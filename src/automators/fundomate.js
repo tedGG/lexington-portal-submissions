@@ -63,11 +63,12 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     } else {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       const [inceptionYear, inceptionMonthNum] = (businessData_.inBusinessSince || '').split('-');
-
+      console.log(businessData_);
+      
       businessData = {
         companyName: businessData_.businessName,
         dba: businessData_.dba,
-        industryCategory: businessData_.industryCategory || null,
+        industryCategory: 'Auto Repair',//businessData_.industryCategory || null,
         taxId: businessData_.federalTaxId,
         legalStructure: businessData_.businessType || null,
         inceptionMonth: MONTHS[parseInt(inceptionMonthNum) - 1] || null,
