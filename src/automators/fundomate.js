@@ -26,11 +26,6 @@ async function login(page, context) {
   await page.click('button[type="submit"]');
   console.log('Credentials submitted.');
 
-  await page.waitForTimeout(5000);
-  console.log(`URL 5s after submit: ${page.url()}`);
-
-  const pageText = await page.$eval('body', el => el.innerText.trim().slice(0, 800)).catch(() => null);
-  console.log(`Page body after submit: ${pageText}`);
 
   await page.waitForFunction(
     () => window.location.hostname.includes('partner.fundomate.com'),
@@ -57,9 +52,52 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     await page.waitForLoadState('networkidle', { timeout: 60_000 });
     console.log(`Navigated to create merchant page. URL: ${page.url()}`);
 
-    const businessData = businessData_?.demo ? TEST_DATA.business : businessData_;
-    const owners = businessData_?.demo ? TEST_DATA.owners : [contact1Data, contact2Data].filter(Boolean);
-    const financial = businessData_?.demo ? TEST_DATA.financial : {};
+    let businessData, owners, financial;
+
+    if (businessData_?.demo) {
+      businessData = TEST_DATA.business;
+      owners = TEST_DATA.owners;
+      financial = TEST_DATA.financial;
+    } else {
+      const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const [inceptionYear, inceptionMonthNum] = (businessData_.inBusinessSince || '').split('-');
+
+      businessData = {
+        companyName: businessData_.businessName,
+        dba: businessData_.dba,
+        industryCategory: businessData_.industryCategory || null,
+        taxId: businessData_.federalTaxId,
+        legalStructure: businessData_.businessType || null,
+        inceptionMonth: MONTHS[parseInt(inceptionMonthNum) - 1] || null,
+        inceptionYear: inceptionYear || null,
+        companyPhone: businessData_.phone,
+        companyEmail: businessData_.email,
+        websitePresent: !!businessData_.website,
+        address: businessData_.streetAddress,
+        city: businessData_.city,
+        state: businessData_.billingState || null,
+        zip: businessData_.zipCode,
+      };
+
+      owners = [contact1Data, contact2Data].filter(Boolean).map(c => ({
+        ownership: c.percentageOwned,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        dateOfBirth: c.dateOfBirth,
+        ssn: c.ssn,
+        address: c.streetAddress,
+        city: c.city,
+        state: c.state || null,
+        zip: c.zipCode,
+        phone: c.phone || null,
+        email: c.email,
+      }));
+
+      financial = {
+        monthlyRevenue: businessData_.grossAnnualSales || null,
+        hasRequestedAmount: false,
+      };
+    }
 
     await fillBusinessInformation(page, businessData);
     await fillOwners(page, owners);
