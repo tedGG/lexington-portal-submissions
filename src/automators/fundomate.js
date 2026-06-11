@@ -68,7 +68,7 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
       businessData = {
         companyName: businessData_.businessName,
         dba: businessData_.dba,
-        industryCategory: 'Auto Repair',//businessData_.industryCategory || null,
+        industryCategory: businessData_.industryCategory || null,
         taxId: businessData_.federalTaxId,
         legalStructure: businessData_.businessType || null,
         inceptionMonth: MONTHS[parseInt(inceptionMonthNum) - 1] || null,
