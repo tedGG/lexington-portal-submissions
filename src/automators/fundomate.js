@@ -3,6 +3,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
 const { fillBusinessInformation, fillOwners, fillFinancialInformation, TEST_DATA } = require('./fundomate-forms');
+const { uploadScreenshot } = require('../helpers/salesforce');
 const { FUNDOMATE_URL, FUNDOMATE_USERNAME, FUNDOMATE_PASSWORD } = process.env;
 
 async function login(page, context) {
@@ -103,8 +104,14 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     await fillOwners(page, owners);
     await fillFinancialInformation(page, financial);
 
-    await page.screenshot({ path: '/tmp/fundomate-new-application.png', fullPage: true });
-    console.log('Screenshot saved.');
+    const screenshot = await page.screenshot({ fullPage: true });
+    console.log('Screenshot taken.');
+
+    if (businessData_?.salesforceRecordId) {
+      const title = `Fundomate Submission - ${businessData_.businessName || 'Demo'}`;
+      const result = await uploadScreenshot(screenshot.toString('base64'), title, businessData_.salesforceRecordId);
+      console.log(`Screenshot uploaded to Salesforce: ${JSON.stringify(result)}`);
+    }
 
     return { success: true, message: 'Application form filled' };
   } finally {

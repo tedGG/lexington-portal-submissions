@@ -98,4 +98,40 @@ async function downloadContentVersion(contentVersionId, fileName) {
   }
 }
 
-module.exports = { downloadContentVersion };
+async function uploadScreenshot(base64Data, title, recordId) {
+  const token = await getToken();
+
+  const body = JSON.stringify({
+    Title: title,
+    PathOnClient: `${title}.png`,
+    VersionData: base64Data,
+    ...(recordId ? { FirstPublishLocationId: recordId } : {}),
+  });
+
+  return new Promise((resolve, reject) => {
+    const url = new URL(`${token.instance_url}/services/data/v59.0/sobjects/ContentVersion`);
+    const req = https.request({
+      hostname: url.hostname,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const result = JSON.parse(Buffer.concat(chunks).toString());
+        if (res.statusCode >= 400) reject(new Error(`SF upload failed: ${JSON.stringify(result)}`));
+        else resolve(result);
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+module.exports = { downloadContentVersion, uploadScreenshot };
