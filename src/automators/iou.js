@@ -140,7 +140,9 @@ async function attemptLogin(page, forms) {
 
 // Opens the portal, optionally logs in, and returns a full-page PNG buffer so a
 // geo-blocked operator can view the actual rendered page (e.g. inline in Postman).
-async function screenshot() {
+// When preSubmit is true, fills the credentials but stops BEFORE clicking Log In,
+// so the password field's dots confirm it was actually populated.
+async function screenshot({ preSubmit = false } = {}) {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
   const browser = await chromium.launch({
@@ -159,12 +161,20 @@ async function screenshot() {
       try {
         await page.fill('#user_email', IOU_USERNAME);
         await page.fill('#user_password', IOU_PASSWORD);
-        // submit triggers a full-page navigation (Rails form POST); wait for it
-        await Promise.all([
-          page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
-          page.click('input[type="submit"], button[type="submit"]'),
-        ]);
-        await page.waitForTimeout(1500); // let the post-login flash/render settle
+
+        const pwLen = await page.inputValue('#user_password').then(v => v.length).catch(() => 0);
+        console.log(`Password field populated: ${pwLen} chars.`);
+
+        if (preSubmit) {
+          console.log('preSubmit mode — capturing page before clicking Log In.');
+        } else {
+          // submit triggers a full-page navigation (Rails form POST); wait for it
+          await Promise.all([
+            page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
+            page.click('input[type="submit"], button[type="submit"]'),
+          ]);
+          await page.waitForTimeout(1500); // let the post-login flash/render settle
+        }
       } catch (err) {
         console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
       }
@@ -180,10 +190,10 @@ async function screenshot() {
 // Captures the iou screenshot and uploads it to a Salesforce record as a
 // ContentVersion, so it can be viewed from Salesforce (no image streamed back
 // through Railway — avoids the request-timeout limit entirely).
-async function screenshotToSalesforce(recordId = DEFAULT_SF_RECORD_ID) {
+async function screenshotToSalesforce(recordId = DEFAULT_SF_RECORD_ID, options = {}) {
   if (!recordId) throw new Error('No Salesforce recordId provided (and no default set)');
 
-  const png = await screenshot();
+  const png = await screenshot(options);
   const title = `iou Portal Screenshot - ${new Date().toISOString()}`;
   console.log(`Uploading iou screenshot to Salesforce record ${recordId}...`);
   const result = await uploadScreenshot(png.toString('base64'), title, recordId);

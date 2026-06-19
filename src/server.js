@@ -81,9 +81,9 @@ app.post('/inspect/iou', requireApiKey, (_req, res) => {
 // Single-request screenshot: runs the browser and streams the PNG back so it
 // renders inline in Postman. Kept fast enough to finish within Railway's ~30s
 // request limit (see iou.screenshot).
-app.get('/inspect/iou/screenshot', requireApiKey, async (_req, res) => {
+app.get('/inspect/iou/screenshot', requireApiKey, async (req, res) => {
   try {
-    const png = await iou.screenshot();
+    const png = await iou.screenshot({ preSubmit: req.query.preSubmit === 'true' });
     res.set('Content-Type', 'image/png').send(png);
   } catch (err) {
     console.error('iou screenshot failed:', err);
@@ -95,12 +95,13 @@ app.get('/inspect/iou/screenshot', requireApiKey, async (_req, res) => {
 // view the image in Salesforce). Optional ?recordId=<OpportunityId>.
 app.post('/inspect/iou/screenshot-sf', requireApiKey, (req, res) => {
   const recordId = req.query.recordId;
+  const preSubmit = req.query.preSubmit === 'true';
   const jobId = randomUUID();
   const logs = [];
   jobs.set(jobId, { status: 'pending', logs });
 
   jobLogStorage.run(logs, () => {
-    iou.screenshotToSalesforce(recordId)
+    iou.screenshotToSalesforce(recordId, { preSubmit })
       .then(result => jobs.set(jobId, { status: 'done', result, logs }))
       .catch(err => {
         console.error('iou screenshot-sf failed:', err);
