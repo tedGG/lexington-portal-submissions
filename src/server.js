@@ -78,36 +78,17 @@ app.post('/inspect/iou', requireApiKey, (_req, res) => {
   res.status(202).json({ jobId });
 });
 
-// Kick off a screenshot job (async — the browser run exceeds Railway's 30s
-// request limit, so we can't take it synchronously).
-app.post('/inspect/iou/screenshot', requireApiKey, (_req, res) => {
-  const jobId = randomUUID();
-  const logs = [];
-  jobs.set(jobId, { status: 'pending', logs });
-
-  jobLogStorage.run(logs, () => {
-    iou.screenshot()
-      .then(png => jobs.set(jobId, { status: 'done', png, logs }))
-      .catch(err => {
-        console.error('iou screenshot failed:', err);
-        jobs.set(jobId, { status: 'error', error: err.message, logs });
-      });
-  });
-
-  res.status(202).json({ jobId });
-});
-
-// Serve the captured PNG once the job is done (renders inline in Postman).
-app.get('/inspect/iou/screenshot/:id', requireApiKey, (req, res) => {
-  const job = jobs.get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (job.status === 'error') return res.status(500).json({ error: job.error, logs: job.logs });
-  if (job.status !== 'done') return res.status(202).json({ status: job.status, logs: job.logs });
-  if (!job.png) return res.status(409).json({
-    error: 'This job has no screenshot — it was likely started via POST /inspect/iou (form dump), not POST /inspect/iou/screenshot.',
-    logs: job.logs,
-  });
-  res.set('Content-Type', 'image/png').send(job.png);
+// Single-request screenshot: runs the browser and streams the PNG back so it
+// renders inline in Postman. Kept fast enough to finish within Railway's ~30s
+// request limit (see iou.screenshot).
+app.get('/inspect/iou/screenshot', requireApiKey, async (_req, res) => {
+  try {
+    const png = await iou.screenshot();
+    res.set('Content-Type', 'image/png').send(png);
+  } catch (err) {
+    console.error('iou screenshot failed:', err);
+    res.status(500).json({ error: 'Screenshot failed', details: err.message });
+  }
 });
 
 app.get('/job/:id', requireApiKey, (req, res) => {

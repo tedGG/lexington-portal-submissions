@@ -148,13 +148,16 @@ async function screenshot() {
 
   try {
     const page = await context.newPage();
-    await page.goto(IOU_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    await page.goto(IOU_URL, { waitUntil: 'domcontentloaded', timeout: 25_000 });
 
     if (IOU_USERNAME && IOU_PASSWORD) {
-      const forms = await dumpForms(page);
       try {
-        await attemptLogin(page, forms);
+        await page.fill('#user_email', IOU_USERNAME);
+        await page.fill('#user_password', IOU_PASSWORD);
+        await page.click('input[type="submit"], button[type="submit"]');
+        // short settle for the post-login render (login result page is fast)
+        await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => {});
+        await page.waitForTimeout(1500);
       } catch (err) {
         console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
       }
