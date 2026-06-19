@@ -78,6 +78,16 @@ app.post('/inspect/iou', requireApiKey, (_req, res) => {
   res.status(202).json({ jobId });
 });
 
+app.get('/inspect/iou/screenshot', requireApiKey, async (_req, res) => {
+  try {
+    const png = await iou.screenshot();
+    res.set('Content-Type', 'image/png').send(png);
+  } catch (err) {
+    console.error('iou screenshot failed:', err);
+    res.status(500).json({ error: 'Screenshot failed', details: err.message });
+  }
+});
+
 app.get('/job/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });

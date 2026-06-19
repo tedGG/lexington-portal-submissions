@@ -133,4 +133,37 @@ async function attemptLogin(page, forms) {
   return snapshot(page);
 }
 
-module.exports = { inspect };
+// Opens the portal, optionally logs in, and returns a full-page PNG buffer so a
+// geo-blocked operator can view the actual rendered page (e.g. inline in Postman).
+async function screenshot() {
+  if (!IOU_URL) throw new Error('IOU_URL is not set');
+
+  const browser = await chromium.launch({
+    headless: process.env.HEADLESS !== 'false',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+  });
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.goto(IOU_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+
+    if (IOU_USERNAME && IOU_PASSWORD) {
+      const forms = await dumpForms(page);
+      try {
+        await attemptLogin(page, forms);
+      } catch (err) {
+        console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
+      }
+    }
+
+    return page.screenshot({ fullPage: true });
+  } finally {
+    await browser.close();
+  }
+}
+
+module.exports = { inspect, screenshot };
