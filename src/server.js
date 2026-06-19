@@ -91,6 +91,26 @@ app.get('/inspect/iou/screenshot', requireApiKey, async (_req, res) => {
   }
 });
 
+// Screenshot the iou portal and upload it to a Salesforce record (async job —
+// view the image in Salesforce). Optional ?recordId=<OpportunityId>.
+app.post('/inspect/iou/screenshot-sf', requireApiKey, (req, res) => {
+  const recordId = req.query.recordId;
+  const jobId = randomUUID();
+  const logs = [];
+  jobs.set(jobId, { status: 'pending', logs });
+
+  jobLogStorage.run(logs, () => {
+    iou.screenshotToSalesforce(recordId)
+      .then(result => jobs.set(jobId, { status: 'done', result, logs }))
+      .catch(err => {
+        console.error('iou screenshot-sf failed:', err);
+        jobs.set(jobId, { status: 'error', error: err.message, logs });
+      });
+  });
+
+  res.status(202).json({ jobId });
+});
+
 app.get('/job/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });

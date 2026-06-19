@@ -2,7 +2,12 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
+const { uploadScreenshot } = require('../helpers/salesforce');
+
 const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
+
+// Default Opportunity Id to attach iou screenshots to when none is supplied.
+const DEFAULT_SF_RECORD_ID = '';
 
 // Dump the structure of every form on the page: action/method, inputs
 // (name/id/type/placeholder), selects, and buttons. Used to capture exact
@@ -154,19 +159,36 @@ async function screenshot() {
       try {
         await page.fill('#user_email', IOU_USERNAME);
         await page.fill('#user_password', IOU_PASSWORD);
-        await page.click('input[type="submit"], button[type="submit"]');
-        // short settle for the post-login render (login result page is fast)
-        await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => {});
-        await page.waitForTimeout(1500);
+        // submit triggers a full-page navigation (Rails form POST); wait for it
+        await Promise.all([
+          page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
+          page.click('input[type="submit"], button[type="submit"]'),
+        ]);
+        await page.waitForTimeout(1500); // let the post-login flash/render settle
       } catch (err) {
         console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
       }
     }
 
-    return page.screenshot({ fullPage: true });
+    const png = await page.screenshot({ fullPage: true });
+    return png;
   } finally {
     await browser.close();
   }
 }
 
-module.exports = { inspect, screenshot };
+// Captures the iou screenshot and uploads it to a Salesforce record as a
+// ContentVersion, so it can be viewed from Salesforce (no image streamed back
+// through Railway — avoids the request-timeout limit entirely).
+async function screenshotToSalesforce(recordId = DEFAULT_SF_RECORD_ID) {
+  if (!recordId) throw new Error('No Salesforce recordId provided (and no default set)');
+
+  const png = await screenshot();
+  const title = `iou Portal Screenshot - ${new Date().toISOString()}`;
+  console.log(`Uploading iou screenshot to Salesforce record ${recordId}...`);
+  const result = await uploadScreenshot(png.toString('base64'), title, recordId);
+  console.log(`Uploaded: ${JSON.stringify(result)}`);
+  return { success: true, recordId, contentVersion: result };
+}
+
+module.exports = { inspect, screenshot, screenshotToSalesforce };
