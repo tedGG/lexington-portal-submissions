@@ -5,6 +5,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const headway = require('./automators/headway');
 const channelPartners = require('./automators/channel-partners');
 const fundomate = require('./automators/fundomate');
+const iou = require('./automators/iou');
 const { submitTestForm } = require('./test-automator');
 
 const app = express();
@@ -59,6 +60,23 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway));
 app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners));
 app.post('/submit-loan/fundomate', requireApiKey, createLoanHandler(fundomate));
+
+app.post('/inspect/iou', requireApiKey, (_req, res) => {
+  const jobId = randomUUID();
+  const logs = [];
+  jobs.set(jobId, { status: 'pending', logs });
+
+  jobLogStorage.run(logs, () => {
+    iou.inspect()
+      .then(result => jobs.set(jobId, { status: 'done', result, logs }))
+      .catch(err => {
+        console.error('iou inspect failed:', err);
+        jobs.set(jobId, { status: 'error', error: err.message, logs });
+      });
+  });
+
+  res.status(202).json({ jobId });
+});
 
 app.get('/job/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);
