@@ -2,10 +2,43 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { IOU_URL } = process.env;
+const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
 
-// Diagnostic-only automator: opens the iou portal from the server (US West)
-// and reports what loads, so the page can be inspected from a geo-blocked location.
+// Dump the structure of every form on the page: action/method, inputs
+// (name/id/type/placeholder), selects, and buttons. Used to capture exact
+// selectors so the automator doesn't have to guess.
+async function dumpForms(page) {
+  return page.evaluate(() => {
+    const text = el => (el.innerText || el.value || '').trim().slice(0, 60);
+    return [...document.querySelectorAll('form')].map(form => ({
+      action: form.getAttribute('action'),
+      method: form.getAttribute('method'),
+      id: form.id || null,
+      inputs: [...form.querySelectorAll('input, textarea, select')].map(el => ({
+        tag: el.tagName.toLowerCase(),
+        type: el.getAttribute('type'),
+        name: el.getAttribute('name'),
+        id: el.id || null,
+        placeholder: el.getAttribute('placeholder'),
+        required: el.required || null,
+      })),
+      buttons: [...form.querySelectorAll('button, input[type=submit]')].map(text),
+    }));
+  });
+}
+
+async function snapshot(page) {
+  const finalUrl = page.url();
+  const title = await page.title();
+  const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 5000) || '');
+  const forms = await dumpForms(page);
+  return { finalUrl, title, bodyText, forms };
+}
+
+// Opens the iou portal, optionally logs in, and dumps the form structure of
+// whatever loads (login page and, if credentials are present, the page after
+// login). Diagnostic-only: lets a geo-blocked operator see the portal via the
+// US-West server and capture selectors for building the real automator.
 async function inspect() {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
@@ -36,32 +69,68 @@ async function inspect() {
     const status = response ? response.status() : null;
     console.log(`Initial response status: ${status}. URL: ${page.url()}`);
 
-    // give SPAs a moment to render
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {
       console.log('networkidle not reached within 30s (continuing).');
     });
 
-    const finalUrl = page.url();
-    const title = await page.title();
-    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 5000) || '');
-    const html = await page.content();
+    const loginPage = await snapshot(page);
+    console.log(`Login page: ${loginPage.title} — ${loginPage.forms.length} form(s) found.`);
 
-    console.log(`Final URL: ${finalUrl}`);
-    console.log(`Title: ${title}`);
+    let loggedIn = null;
+    let loginError = null;
+
+    if (IOU_USERNAME && IOU_PASSWORD) {
+      try {
+        loggedIn = await attemptLogin(page, loginPage.forms);
+        console.log(`Post-login URL: ${loggedIn.finalUrl} — ${loggedIn.forms.length} form(s).`);
+      } catch (err) {
+        loginError = err.message;
+        console.log(`Login attempt failed: ${err.message}`);
+      }
+    } else {
+      console.log('IOU_USERNAME/IOU_PASSWORD not set — skipping login.');
+    }
 
     return {
       success: true,
       status,
-      finalUrl,
-      title,
-      bodyText,
-      htmlSnippet: html.slice(0, 8000),
+      loginPage,
+      loggedIn,
+      loginError,
       consoleLogs,
       failedRequests,
     };
   } finally {
     await browser.close();
   }
+}
+
+// Fill the email/password fields by their detected names and submit, then wait
+// for navigation away from the login URL.
+async function attemptLogin(page, forms) {
+  const inputs = forms.flatMap(f => f.inputs);
+  const emailInput = inputs.find(i =>
+    i.type === 'email' || /email|login|user/i.test(`${i.name} ${i.id} ${i.placeholder}`));
+  const passwordInput = inputs.find(i => i.type === 'password');
+
+  if (!emailInput || !passwordInput) {
+    throw new Error(`Could not locate login fields (email=${!!emailInput}, password=${!!passwordInput})`);
+  }
+
+  const sel = i => (i.id ? `#${i.id}` : `[name="${i.name}"]`);
+  console.log(`Filling login: email=${sel(emailInput)} password=${sel(passwordInput)}`);
+
+  await page.fill(sel(emailInput), IOU_USERNAME);
+  await page.fill(sel(passwordInput), IOU_PASSWORD);
+
+  const beforeUrl = page.url();
+  await Promise.all([
+    page.waitForURL(url => url.toString() !== beforeUrl, { timeout: 30_000 }).catch(() => {}),
+    page.click('button[type="submit"], input[type="submit"], button'),
+  ]);
+
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  return snapshot(page);
 }
 
 module.exports = { inspect };
