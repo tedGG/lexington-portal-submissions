@@ -102,7 +102,11 @@ app.get('/inspect/iou/screenshot/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (job.status === 'error') return res.status(500).json({ error: job.error, logs: job.logs });
-  if (job.status !== 'done' || !job.png) return res.status(202).json({ status: job.status, logs: job.logs });
+  if (job.status !== 'done') return res.status(202).json({ status: job.status, logs: job.logs });
+  if (!job.png) return res.status(409).json({
+    error: 'This job has no screenshot — it was likely started via POST /inspect/iou (form dump), not POST /inspect/iou/screenshot.',
+    logs: job.logs,
+  });
   res.set('Content-Type', 'image/png').send(job.png);
 });
 
