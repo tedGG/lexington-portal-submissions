@@ -9,55 +9,50 @@ const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
 // Default Opportunity Id to attach iou screenshots to when none is supplied.
 const DEFAULT_SF_RECORD_ID = '';
 
-// Dump the structure of every form on the page: action/method, inputs
-// (name/id/type/placeholder), selects, and buttons. Used to capture exact
-// selectors so the automator doesn't have to guess.
-async function dumpForms(page) {
-  return page.evaluate(() => {
-    const text = el => (el.innerText || el.value || '').trim().slice(0, 60);
-    return [...document.querySelectorAll('form')].map(form => ({
-      action: form.getAttribute('action'),
-      method: form.getAttribute('method'),
-      id: form.id || null,
-      inputs: [...form.querySelectorAll('input, textarea, select')].map(el => ({
-        tag: el.tagName.toLowerCase(),
-        type: el.getAttribute('type'),
+// Dump every form field on the page in document order. For MUI picklists
+// ([role="combobox"]) the options aren't in the DOM until opened, so each is
+// clicked open, its options read, then closed. Returns a flat array of field
+// descriptors; picklists carry an `options` array.
+async function dumpFields(page) {
+  // 1. Collect field descriptors in document order, tagging picklists.
+  const fields = await page.evaluate(() => {
+    const nodes = document.querySelectorAll(
+      'input, textarea, select, [role="combobox"], [role="button"][aria-haspopup="listbox"]'
+    );
+    return [...nodes].map((el, i) => {
+      const isPicklist = el.matches('[role="combobox"], [role="button"][aria-haspopup="listbox"]');
+      el.setAttribute('data-dump-idx', i); // stable handle for the open/read pass
+      return {
+        idx: i,
+        control: isPicklist ? 'picklist' : el.tagName.toLowerCase(),
+        type: isPicklist ? null : el.getAttribute('type'),
         name: el.getAttribute('name'),
         id: el.id || null,
-        placeholder: el.getAttribute('placeholder'),
-        required: el.required || null,
-      })),
-      buttons: [...form.querySelectorAll('button, input[type=submit]')].map(text),
-    }));
+        placeholder: el.getAttribute('placeholder') || (isPicklist ? el.innerText.trim() : null),
+        required: el.required || el.getAttribute('aria-required') === 'true' || null,
+      };
+    });
   });
-}
 
-// MUI Select components don't render their options until clicked. Open each
-// combobox, read the listbox options, then close it — so we can log the exact
-// picklist values (Company Type, Reason for Loan, State, etc.).
-async function dumpMuiSelects(page) {
-  const combos = page.locator('[role="combobox"], [role="button"][aria-haspopup="listbox"]');
-  const count = await combos.count();
-  const result = [];
-
-  for (let i = 0; i < count; i++) {
-    const combo = combos.nth(i);
-    const label = (await combo.innerText().catch(() => '')).trim() || `combobox[${i}]`;
+  // 2. For each picklist, open it and read the rendered options.
+  for (const field of fields) {
+    if (field.control !== 'picklist') continue;
+    const combo = page.locator(`[data-dump-idx="${field.idx}"]`);
     try {
       await combo.click();
       await page.waitForSelector('[role="listbox"] [role="option"]', { timeout: 5_000 });
-      const options = await page.locator('[role="listbox"] [role="option"]')
+      field.options = await page.locator('[role="listbox"] [role="option"]')
         .allInnerTexts()
         .then(arr => arr.map(s => s.trim()).filter(Boolean));
-      result.push({ label, options });
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(250);
     } catch (err) {
-      result.push({ label, error: err.message });
+      field.optionsError = err.message;
       await page.keyboard.press('Escape').catch(() => {});
     }
   }
-  return result;
+
+  return fields;
 }
 
 // Wait for an async page (Turbo/XHR) to settle and have visible content, then
@@ -80,8 +75,8 @@ async function snapshot(page) {
   const finalUrl = page.url();
   const title = await page.title();
   const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 5000) || '');
-  const forms = await dumpForms(page);
-  return { finalUrl, title, bodyText, forms };
+  const fields = await dumpFields(page);
+  return { finalUrl, title, bodyText, fields };
 }
 
 // Opens the iou portal, optionally logs in, and dumps the form structure of
@@ -223,13 +218,10 @@ async function screenshot({ preSubmit = false, newApplication = false } = {}) {
             console.log('Opening New Application...');
             await page.click('[data-cy="new-app"]');
             await settleAndLog(page, 'New Application');
-            const forms = await dumpForms(page);
-            console.log(`New Application: ${forms.length} form(s) found.`);
-            console.log(JSON.stringify(forms, null, 2));
-
-            const selects = await dumpMuiSelects(page);
-            console.log(`Picklists: ${selects.length} found.`);
-            console.log(JSON.stringify(selects, null, 2));
+            const fields = await dumpFields(page);
+            const picklists = fields.filter(f => f.control === 'picklist').length;
+            console.log(`New Application: ${fields.length} fields (${picklists} picklists).`);
+            console.log(`FIELDS_JSON ${JSON.stringify(fields)}`);
           }
         }
       } catch (err) {
