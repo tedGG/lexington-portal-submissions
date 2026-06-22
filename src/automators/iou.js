@@ -33,7 +33,7 @@ async function dumpForms(page) {
 }
 
 // Wait for an async page (Turbo/XHR) to settle and have visible content, then
-// log its URL, title, and body text so we can see where we landed.
+// log its URL and title so we can see where we landed.
 async function settleAndLog(page, label) {
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {
     console.log(`${label}: networkidle not reached in 20s (continuing).`);
@@ -44,14 +44,8 @@ async function settleAndLog(page, label) {
   ).catch(() => console.log(`${label}: no visible body text after 10s (continuing).`));
   await page.waitForTimeout(2500); // final settle for late-rendering widgets
 
-  const url = page.url();
   const title = await page.title().catch(() => '');
-  const bodyText = await page
-    .evaluate(() => (document.body?.innerText || '').trim().slice(0, 2000))
-    .catch(() => '');
-  console.log(`${label} URL: ${url}`);
-  console.log(`${label} title: ${title}`);
-  console.log(`${label} body text:\n${bodyText}`);
+  console.log(`${label}: ${page.url()} — "${title}"`);
 }
 
 async function snapshot(page) {
@@ -198,14 +192,10 @@ async function screenshot({ preSubmit = false, newApplication = false } = {}) {
           await settleAndLog(page, 'Post-login');
 
           if (newApplication) {
-            console.log('Clicking "New Application"...');
-            await Promise.all([
-              page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
-              page.getByRole('link', { name: /new application/i }).click(),
-            ]);
-            await settleAndLog(page, 'New Application');
-            const forms = await dumpForms(page);
-            console.log(`New Application forms:\n${JSON.stringify(forms, null, 2)}`);
+            const headerHtml = await page
+              .evaluate(() => document.querySelector('header')?.outerHTML || '(no <header> element)')
+              .catch(() => '(failed to read header)');
+            console.log(`Header HTML:\n${headerHtml}`);
           }
         }
       } catch (err) {
