@@ -59,7 +59,7 @@ async function dumpFields(page) {
 // saved or submitted).
 const TEST_DATA = {
   industryCheckbox: true,
-  companyCpr: '12-3456789',          // Business Tax ID (EIN)
+  companyCpr: '98-7654321',          // Business Tax ID (EIN) — must differ from guarantor SSN
   companyFirstName: 'Test Business LLC', // Legal Business Name
   companyLastName: 'Test DBA',        // Business DBA Name
   companyType: 'Limited Liability Company (LLC)',
