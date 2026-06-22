@@ -86,6 +86,7 @@ app.get('/inspect/iou/screenshot', requireApiKey, async (req, res) => {
     const png = await iou.screenshot({
       preSubmit: req.query.preSubmit === 'true',
       newApplication: req.query.newApplication === 'true',
+      fillTestData: req.query.fillTestData === 'true',
     });
     res.set('Content-Type', 'image/png').send(png);
   } catch (err) {
@@ -100,12 +101,13 @@ app.post('/inspect/iou/screenshot-sf', requireApiKey, (req, res) => {
   const recordId = req.query.recordId;
   const preSubmit = req.query.preSubmit === 'true';
   const newApplication = req.query.newApplication === 'true';
+  const fillTestData = req.query.fillTestData === 'true';
   const jobId = randomUUID();
   const logs = [];
   jobs.set(jobId, { status: 'pending', logs });
 
   jobLogStorage.run(logs, () => {
-    iou.screenshotToSalesforce(recordId, { preSubmit, newApplication })
+    iou.screenshotToSalesforce(recordId, { preSubmit, newApplication, fillTestData })
       .then(result => jobs.set(jobId, { status: 'done', result, logs }))
       .catch(err => {
         console.error('iou screenshot-sf failed:', err);

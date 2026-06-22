@@ -55,6 +55,119 @@ async function dumpFields(page) {
   return fields;
 }
 
+// Test data for the IOU New Loan Application (used for dry-run fills — never
+// saved or submitted).
+const TEST_DATA = {
+  industryCheckbox: true,
+  companyCpr: '12-3456789',          // Business Tax ID (EIN)
+  companyFirstName: 'Test Business LLC', // Legal Business Name
+  companyLastName: 'Test DBA',        // Business DBA Name
+  companyType: 'Limited Liability Company (LLC)',
+  businessStartDate: '01/2020',       // MM/YYYY
+  companyUrl: 'https://example.com',
+  companyPhoneNumber: '5551234567',
+  companyEmail: 'business@example.com',
+  companyStreetNumber: '123',         // picklist/autocomplete
+  companyStreetName: 'Main Street',
+  companyUnit: 'Suite 100',
+  companyCity: 'New York',
+  companyState: 'New York',
+  companyZip: '10001',
+  loanAmount: '50000',
+  loanReason: 'Working Capital',
+  paymentFrequency: 'Weekly',
+  loanTerm: '12 Months',
+  loanDescription: 'Test application — do not process.',
+  guarantorFirstName: 'John',
+  guarantorLastName: 'Doe',
+  guarantorStreetNumber: '456',       // picklist/autocomplete
+  guarantorStreetName: 'Oak Avenue',
+  guarantorUnit: 'Apt 2B',
+  guarantorCity: 'New York',
+  guarantorState: 'New York',
+  guarantorZip: '10001',
+  guarantorCell: '5559876543',
+  guarantorPhoneNumber: '5551112222',
+  guarantorEmail: 'john.doe@example.com',
+  guarantorCpr: '123-45-6789',        // SSN
+  guarantorDOB: '1985-01-15',         // native date input (yyyy-mm-dd)
+  guarantorPercentage: '100',
+};
+
+// Select an option in a MUI Select by clicking it open and choosing the option
+// by exact text.
+async function selectMui(page, comboId, optionText) {
+  await page.click(`#${comboId}`);
+  await page.waitForSelector('[role="listbox"] [role="option"]', { timeout: 5_000 });
+  await page.getByRole('option', { name: optionText, exact: true }).click();
+  await page.waitForTimeout(200);
+}
+
+// The Street Number fields are autocomplete comboboxes: type the value, then
+// pick the matching/typed option if one appears, otherwise leave the typed text.
+async function fillStreetNumber(page, comboId, value) {
+  await page.click(`#${comboId}`);
+  await page.type(`#${comboId}`, value, { delay: 60 });
+  await page.waitForTimeout(800);
+  const option = page.locator('[role="listbox"] [role="option"]').first();
+  if (await option.count().then(c => c > 0).catch(() => false)) {
+    await option.click().catch(() => page.keyboard.press('Escape'));
+  } else {
+    await page.keyboard.press('Escape').catch(() => {});
+  }
+  await page.waitForTimeout(200);
+}
+
+// Fill the New Loan Application with TEST_DATA. Does NOT save or submit.
+async function fillApplication(page) {
+  const d = TEST_DATA;
+
+  // Business Information
+  if (d.industryCheckbox) await page.locator('input[name="industryCheckbox"]').check().catch(() => {});
+  await page.fill('#companyCpr', d.companyCpr);
+  await page.fill('#companyFirstName', d.companyFirstName);
+  await page.fill('#companyLastName', d.companyLastName);
+  await selectMui(page, 'mui-2', d.companyType);
+  await page.fill('#businessStartDate', d.businessStartDate);
+  await page.fill('#companyUrl', d.companyUrl);
+  await page.fill('#companyPhoneNumber', d.companyPhoneNumber);
+  await page.fill('#companyEmail', d.companyEmail);
+  await fillStreetNumber(page, 'mui-4', d.companyStreetNumber);
+  await page.fill('#companyStreetName', d.companyStreetName);
+  await page.fill('#companyUnit', d.companyUnit);
+  await page.fill('#companyCity', d.companyCity);
+  await selectMui(page, 'mui-6', d.companyState);
+  await page.fill('#companyZip', d.companyZip);
+  console.log('Filled: Business Information');
+
+  // Loan Information
+  await page.fill('#loanAmount', d.loanAmount);
+  await selectMui(page, 'mui-8', d.loanReason);
+  await selectMui(page, 'mui-10', d.paymentFrequency);
+  await selectMui(page, 'mui-12', d.loanTerm);
+  await page.fill('#loanDescription', d.loanDescription);
+  console.log('Filled: Loan Information');
+
+  // Guarantor Information
+  await page.fill('#guarantorFirstName', d.guarantorFirstName);
+  await page.fill('#guarantorLastName', d.guarantorLastName);
+  await fillStreetNumber(page, 'mui-14', d.guarantorStreetNumber);
+  await page.fill('#guarantorStreetName', d.guarantorStreetName);
+  await page.fill('#guarantorUnit', d.guarantorUnit);
+  await page.fill('#guarantorCity', d.guarantorCity);
+  await selectMui(page, 'mui-16', d.guarantorState);
+  await page.fill('#guarantorZip', d.guarantorZip);
+  await page.fill('#guarantorCell', d.guarantorCell);
+  await page.fill('#guarantorPhoneNumber', d.guarantorPhoneNumber);
+  await page.fill('#guarantorEmail', d.guarantorEmail);
+  await page.fill('#guarantorCpr', d.guarantorCpr);
+  await page.fill('#guarnatorDOB', d.guarantorDOB); // note: their id has a typo
+  await page.fill('#guarantorPercentage', d.guarantorPercentage);
+  console.log('Filled: Guarantor Information');
+
+  console.log('Application filled with test data — NOT saved or submitted.');
+}
+
 // Wait for an async page (Turbo/XHR) to settle and have visible content, then
 // log its URL and title so we can see where we landed.
 async function settleAndLog(page, label) {
@@ -181,7 +294,7 @@ async function attemptLogin(page, forms) {
 // geo-blocked operator can view the actual rendered page (e.g. inline in Postman).
 // When preSubmit is true, fills the credentials but stops BEFORE clicking Log In,
 // so the password field's dots confirm it was actually populated.
-async function screenshot({ preSubmit = false, newApplication = false } = {}) {
+async function screenshot({ preSubmit = false, newApplication = false, fillTestData = false } = {}) {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
   const browser = await chromium.launch({
@@ -218,10 +331,16 @@ async function screenshot({ preSubmit = false, newApplication = false } = {}) {
             console.log('Opening New Application...');
             await page.click('[data-cy="new-app"]');
             await settleAndLog(page, 'New Application');
-            const fields = await dumpFields(page);
-            const picklists = fields.filter(f => f.control === 'picklist').length;
-            console.log(`New Application: ${fields.length} fields (${picklists} picklists).`);
-            console.log(`FIELDS_JSON ${JSON.stringify(fields)}`);
+
+            if (fillTestData) {
+              await fillApplication(page);
+              await page.waitForTimeout(1000);
+            } else {
+              const fields = await dumpFields(page);
+              const picklists = fields.filter(f => f.control === 'picklist').length;
+              console.log(`New Application: ${fields.length} fields (${picklists} picklists).`);
+              console.log(`FIELDS_JSON ${JSON.stringify(fields)}`);
+            }
           }
         }
       } catch (err) {
