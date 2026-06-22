@@ -173,7 +173,26 @@ async function screenshot({ preSubmit = false } = {}) {
             page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
             page.click('input[type="submit"], button[type="submit"]'),
           ]);
-          await page.waitForTimeout(1500); // let the post-login flash/render settle
+          // dashboard loads data async (Turbo/XHR) — wait for network to settle
+          // and for visible body content before screenshotting.
+          await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {
+            console.log('networkidle not reached in 20s (continuing).');
+          });
+          await page.waitForFunction(
+            () => (document.body?.innerText || '').trim().length > 0,
+            { timeout: 10_000 }
+          ).catch(() => console.log('No visible body text after 10s (continuing).'));
+          await page.waitForTimeout(2500); // final settle for late-rendering widgets
+
+          // log where we landed so we can see the post-login page
+          const url = page.url();
+          const title = await page.title().catch(() => '');
+          const bodyText = await page
+            .evaluate(() => (document.body?.innerText || '').trim().slice(0, 2000))
+            .catch(() => '');
+          console.log(`Post-login URL: ${url}`);
+          console.log(`Post-login title: ${title}`);
+          console.log(`Post-login body text:\n${bodyText}`);
         }
       } catch (err) {
         console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
