@@ -192,10 +192,12 @@ async function screenshot({ preSubmit = false, newApplication = false } = {}) {
           await settleAndLog(page, 'Post-login');
 
           if (newApplication) {
-            const headerHtml = await page
-              .evaluate(() => document.querySelector('header')?.outerHTML || '(no <header> element)')
-              .catch(() => '(failed to read header)');
-            console.log(`Header HTML:\n${headerHtml}`);
+            console.log('Opening New Application...');
+            await page.click('[data-cy="new-app"]');
+            await settleAndLog(page, 'New Application');
+            const forms = await dumpForms(page);
+            console.log(`New Application: ${forms.length} form(s) found.`);
+            console.log(JSON.stringify(forms, null, 2));
           }
         }
       } catch (err) {
