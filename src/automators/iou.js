@@ -32,6 +32,28 @@ async function dumpForms(page) {
   });
 }
 
+// Wait for an async page (Turbo/XHR) to settle and have visible content, then
+// log its URL, title, and body text so we can see where we landed.
+async function settleAndLog(page, label) {
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {
+    console.log(`${label}: networkidle not reached in 20s (continuing).`);
+  });
+  await page.waitForFunction(
+    () => (document.body?.innerText || '').trim().length > 0,
+    { timeout: 10_000 }
+  ).catch(() => console.log(`${label}: no visible body text after 10s (continuing).`));
+  await page.waitForTimeout(2500); // final settle for late-rendering widgets
+
+  const url = page.url();
+  const title = await page.title().catch(() => '');
+  const bodyText = await page
+    .evaluate(() => (document.body?.innerText || '').trim().slice(0, 2000))
+    .catch(() => '');
+  console.log(`${label} URL: ${url}`);
+  console.log(`${label} title: ${title}`);
+  console.log(`${label} body text:\n${bodyText}`);
+}
+
 async function snapshot(page) {
   const finalUrl = page.url();
   const title = await page.title();
@@ -142,7 +164,7 @@ async function attemptLogin(page, forms) {
 // geo-blocked operator can view the actual rendered page (e.g. inline in Postman).
 // When preSubmit is true, fills the credentials but stops BEFORE clicking Log In,
 // so the password field's dots confirm it was actually populated.
-async function screenshot({ preSubmit = false } = {}) {
+async function screenshot({ preSubmit = false, newApplication = false } = {}) {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
   const browser = await chromium.launch({
@@ -173,26 +195,18 @@ async function screenshot({ preSubmit = false } = {}) {
             page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
             page.click('input[type="submit"], button[type="submit"]'),
           ]);
-          // dashboard loads data async (Turbo/XHR) — wait for network to settle
-          // and for visible body content before screenshotting.
-          await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {
-            console.log('networkidle not reached in 20s (continuing).');
-          });
-          await page.waitForFunction(
-            () => (document.body?.innerText || '').trim().length > 0,
-            { timeout: 10_000 }
-          ).catch(() => console.log('No visible body text after 10s (continuing).'));
-          await page.waitForTimeout(2500); // final settle for late-rendering widgets
+          await settleAndLog(page, 'Post-login');
 
-          // log where we landed so we can see the post-login page
-          const url = page.url();
-          const title = await page.title().catch(() => '');
-          const bodyText = await page
-            .evaluate(() => (document.body?.innerText || '').trim().slice(0, 2000))
-            .catch(() => '');
-          console.log(`Post-login URL: ${url}`);
-          console.log(`Post-login title: ${title}`);
-          console.log(`Post-login body text:\n${bodyText}`);
+          if (newApplication) {
+            console.log('Clicking "New Application"...');
+            await Promise.all([
+              page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
+              page.getByRole('link', { name: /new application/i }).click(),
+            ]);
+            await settleAndLog(page, 'New Application');
+            const forms = await dumpForms(page);
+            console.log(`New Application forms:\n${JSON.stringify(forms, null, 2)}`);
+          }
         }
       } catch (err) {
         console.log(`Login attempt failed (capturing page as-is): ${err.message}`);
