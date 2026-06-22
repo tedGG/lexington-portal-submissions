@@ -32,6 +32,34 @@ async function dumpForms(page) {
   });
 }
 
+// MUI Select components don't render their options until clicked. Open each
+// combobox, read the listbox options, then close it — so we can log the exact
+// picklist values (Company Type, Reason for Loan, State, etc.).
+async function dumpMuiSelects(page) {
+  const combos = page.locator('[role="combobox"], [role="button"][aria-haspopup="listbox"]');
+  const count = await combos.count();
+  const result = [];
+
+  for (let i = 0; i < count; i++) {
+    const combo = combos.nth(i);
+    const label = (await combo.innerText().catch(() => '')).trim() || `combobox[${i}]`;
+    try {
+      await combo.click();
+      await page.waitForSelector('[role="listbox"] [role="option"]', { timeout: 5_000 });
+      const options = await page.locator('[role="listbox"] [role="option"]')
+        .allInnerTexts()
+        .then(arr => arr.map(s => s.trim()).filter(Boolean));
+      result.push({ label, options });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    } catch (err) {
+      result.push({ label, error: err.message });
+      await page.keyboard.press('Escape').catch(() => {});
+    }
+  }
+  return result;
+}
+
 // Wait for an async page (Turbo/XHR) to settle and have visible content, then
 // log its URL and title so we can see where we landed.
 async function settleAndLog(page, label) {
@@ -198,6 +226,10 @@ async function screenshot({ preSubmit = false, newApplication = false } = {}) {
             const forms = await dumpForms(page);
             console.log(`New Application: ${forms.length} form(s) found.`);
             console.log(JSON.stringify(forms, null, 2));
+
+            const selects = await dumpMuiSelects(page);
+            console.log(`Picklists: ${selects.length} found.`);
+            console.log(JSON.stringify(selects, null, 2));
           }
         }
       } catch (err) {
