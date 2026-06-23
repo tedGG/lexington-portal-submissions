@@ -6,22 +6,244 @@ const { uploadScreenshot } = require('../helpers/salesforce');
 
 const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
 
-// Default Opportunity Id to attach iou screenshots to when none is supplied.
 const DEFAULT_SF_RECORD_ID = '';
 
-// Dump every form field on the page in document order. For MUI picklists
-// ([role="combobox"]) the options aren't in the DOM until opened, so each is
-// clicked open, its options read, then closed. Returns a flat array of field
-// descriptors; picklists carry an `options` array.
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function login(page) {
+  await page.goto(`${IOU_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.fill('#user_email', IOU_USERNAME);
+  await page.fill('#user_password', IOU_PASSWORD);
+  await Promise.all([
+    page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
+    page.click('input[type="submit"], button[type="submit"]'),
+  ]);
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  console.log(`Logged in. URL: ${page.url()}`);
+}
+
+async function openNewApplication(page) {
+  await page.click('[data-cy="new-app"]');
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+  console.log(`New Application opened. URL: ${page.url()}`);
+}
+
+// Select an option in a MUI Select by id.
+async function selectMui(page, comboId, optionText) {
+  if (!optionText) return;
+  await page.click(`#${comboId}`);
+  await page.waitForSelector('[role="listbox"] [role="option"]', { timeout: 5_000 });
+  await page.getByRole('option', { name: optionText, exact: true }).click();
+  await page.waitForTimeout(200);
+  console.log(`Selected "${optionText}" for #${comboId}`);
+}
+
+// Street Number is an autocomplete combobox — type and pick first suggestion,
+// or leave as typed if no suggestions appear.
+async function fillStreetNumber(page, comboId, value) {
+  if (!value) return;
+  await page.click(`#${comboId}`);
+  await page.type(`#${comboId}`, String(value), { delay: 60 });
+  await page.waitForTimeout(800);
+  const option = page.locator('[role="listbox"] [role="option"]').first();
+  const hasOption = await option.count().then(c => c > 0).catch(() => false);
+  if (hasOption) {
+    await option.click().catch(() => page.keyboard.press('Escape'));
+  } else {
+    await page.keyboard.press('Escape').catch(() => {});
+  }
+  await page.waitForTimeout(200);
+  console.log(`Filled street number #${comboId}: ${value}`);
+}
+
+async function safeFill(page, selector, value) {
+  if (!value && value !== 0) return;
+  await page.fill(selector, String(value));
+  console.log(`Filled ${selector}`);
+}
+
+// ─── Data shaping ────────────────────────────────────────────────────────────
+
+// Salesforce sends businessData.inBusinessSince as "YYYY-MM" or "YYYY-MM-DD".
+// IOU wants "MM/YYYY".
+function formatStartDate(value) {
+  if (!value) return null;
+  const [year, month] = String(value).split('-');
+  if (!year || !month) return value;
+  return `${month}/${year}`;
+}
+
+// Salesforce sends dateOfBirth as "YYYY-MM-DD". IOU native date input wants "YYYY-MM-DD".
+// (No conversion needed — pass through.)
+function formatDOB(value) {
+  return value || null;
+}
+
+// Map Salesforce Entity_Type__c values to IOU Company Type picklist options.
+const COMPANY_TYPE_MAP = {
+  'Corporation': 'Corporation',
+  'General Partnership': 'General Partnership',
+  'Limited Liability Partnership': 'Limited Liability Partnership (LLP)',
+  'LLP': 'Limited Liability Partnership (LLP)',
+  'Limited Liability Company': 'Limited Liability Company (LLC)',
+  'LLC': 'Limited Liability Company (LLC)',
+  'PLC': 'Public Liability Company (PLC)',
+  'Sole Proprietorship': 'Sole Proprietorship',
+};
+
+function mapCompanyType(value) {
+  if (!value) return null;
+  return COMPANY_TYPE_MAP[value] || value;
+}
+
+// IOU state picklist uses full names ("New York"), same as Salesforce BillingState.
+// Pass through — no mapping needed.
+
+// ─── Form fill ───────────────────────────────────────────────────────────────
+
+async function fillApplicationForm(page, businessData, contact1Data) {
+  // Industry checkbox — always check to certify
+  await page.locator('input[name="industryCheckbox"]').check().catch(() => {});
+  console.log('Checked: industry checkbox');
+
+  // ── Business Information ──
+  await safeFill(page, '#companyCpr', businessData.federalTaxId);
+  await safeFill(page, '#companyFirstName', businessData.businessName);
+  await safeFill(page, '#companyLastName', businessData.dba);
+  await selectMui(page, 'mui-2', mapCompanyType(businessData.businessType));
+  await safeFill(page, '#businessStartDate', formatStartDate(businessData.inBusinessSince));
+  await safeFill(page, '#companyUrl', businessData.website);
+  await safeFill(page, '#companyPhoneNumber', businessData.phone);
+  await safeFill(page, '#companyEmail', businessData.email);
+  await fillStreetNumber(page, 'mui-4', businessData.streetNumber);
+  await safeFill(page, '#companyStreetName', businessData.streetAddress);
+  await safeFill(page, '#companyUnit', businessData.streetAddressLine2);
+  await safeFill(page, '#companyCity', businessData.city);
+  await selectMui(page, 'mui-6', businessData.billingState);
+  await safeFill(page, '#companyZip', businessData.zipCode);
+  console.log('Filled: Business Information');
+
+  // ── Loan Information ──
+  await safeFill(page, '#loanAmount', businessData.loanAmount);
+  await selectMui(page, 'mui-8', businessData.loanReason);
+  await selectMui(page, 'mui-10', businessData.paymentFrequency);
+  await selectMui(page, 'mui-12', businessData.loanTerm);
+  await safeFill(page, '#loanDescription', businessData.loanDescription);
+  console.log('Filled: Loan Information');
+
+  // ── Guarantor Information (contact1) ──
+  if (contact1Data) {
+    await safeFill(page, '#guarantorFirstName', contact1Data.firstName);
+    await safeFill(page, '#guarantorLastName', contact1Data.lastName);
+    await fillStreetNumber(page, 'mui-14', contact1Data.streetNumber);
+    await safeFill(page, '#guarantorStreetName', contact1Data.streetAddress);
+    await safeFill(page, '#guarantorUnit', contact1Data.unit);
+    await safeFill(page, '#guarantorCity', contact1Data.city);
+    await selectMui(page, 'mui-16', contact1Data.state);
+    await safeFill(page, '#guarantorZip', contact1Data.zipCode);
+    await safeFill(page, '#guarantorCell', contact1Data.phoneMobile || contact1Data.phone);
+    await safeFill(page, '#guarantorPhoneNumber', contact1Data.phone);
+    await safeFill(page, '#guarantorEmail', contact1Data.email);
+    await safeFill(page, '#guarantorCpr', contact1Data.ssn);
+    await safeFill(page, '#guarnatorDOB', formatDOB(contact1Data.dateOfBirth)); // typo in their id
+    await safeFill(page, '#guarantorPercentage', contact1Data.percentageOwned);
+    console.log('Filled: Guarantor Information');
+  }
+
+  console.log('Form populated — NOT saved or submitted.');
+}
+
+// ─── submitLoan (main entry point) ───────────────────────────────────────────
+
+async function submitLoan(businessData_, contact1Data, contact2Data, files) {
+  if (!IOU_URL) throw new Error('IOU_URL is not set');
+
+  const browser = await chromium.launch({
+    headless: process.env.HEADLESS !== 'false',
+    slowMo: 300,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+  });
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  });
+
+  try {
+    const page = await context.newPage();
+    await login(page);
+    await openNewApplication(page);
+
+    let businessData;
+
+    if (businessData_?.demo) {
+      businessData = {
+        federalTaxId: '98-7654321',
+        businessName: 'Test Business LLC',
+        dba: 'Test DBA',
+        businessType: 'LLC',
+        inBusinessSince: '2020-01',
+        website: 'https://example.com',
+        phone: '5551234567',
+        email: 'business@example.com',
+        streetNumber: '123',
+        streetAddress: 'Main Street',
+        streetAddressLine2: 'Suite 100',
+        city: 'New York',
+        billingState: 'New York',
+        zipCode: '10001',
+        loanAmount: '50000',
+        loanReason: 'Working Capital',
+        paymentFrequency: 'Weekly',
+        loanTerm: '12 Months',
+        loanDescription: 'Test application — do not process.',
+      };
+      contact1Data = {
+        firstName: 'John',
+        lastName: 'Doe',
+        streetNumber: '456',
+        streetAddress: 'Oak Avenue',
+        unit: 'Apt 2B',
+        city: 'New York',
+        state: 'New York',
+        zipCode: '10001',
+        phoneMobile: '5559876543',
+        phone: '5551112222',
+        email: 'john.doe@example.com',
+        ssn: '123-45-6789',
+        dateOfBirth: '1985-01-15',
+        percentageOwned: 100,
+      };
+    } else {
+      businessData = businessData_;
+    }
+
+    await fillApplicationForm(page, businessData, contact1Data);
+
+    const screenshot = await page.screenshot({ fullPage: true });
+    console.log('Screenshot taken.');
+
+    if (businessData_?.salesforceRecordId) {
+      const title = `IOU Financial Submission - ${businessData_.businessName || 'Demo'}`;
+      const result = await uploadScreenshot(screenshot.toString('base64'), title, businessData_.salesforceRecordId);
+      console.log(`Screenshot uploaded to Salesforce: ${JSON.stringify(result)}`);
+    }
+
+    return { success: true, message: 'Application form populated — not submitted.' };
+  } finally {
+    await browser.close();
+  }
+}
+
+// ─── Diagnostic helpers (kept for inspection endpoints) ──────────────────────
+
 async function dumpFields(page) {
-  // 1. Collect field descriptors in document order, tagging picklists.
   const fields = await page.evaluate(() => {
     const nodes = document.querySelectorAll(
       'input, textarea, select, [role="combobox"], [role="button"][aria-haspopup="listbox"]'
     );
     return [...nodes].map((el, i) => {
       const isPicklist = el.matches('[role="combobox"], [role="button"][aria-haspopup="listbox"]');
-      el.setAttribute('data-dump-idx', i); // stable handle for the open/read pass
+      el.setAttribute('data-dump-idx', i);
       return {
         idx: i,
         control: isPicklist ? 'picklist' : el.tagName.toLowerCase(),
@@ -34,7 +256,6 @@ async function dumpFields(page) {
     });
   });
 
-  // 2. For each picklist, open it and read the rendered options.
   for (const field of fields) {
     if (field.control !== 'picklist') continue;
     const combo = page.locator(`[data-dump-idx="${field.idx}"]`);
@@ -51,125 +272,9 @@ async function dumpFields(page) {
       await page.keyboard.press('Escape').catch(() => {});
     }
   }
-
   return fields;
 }
 
-// Test data for the IOU New Loan Application (used for dry-run fills — never
-// saved or submitted).
-const TEST_DATA = {
-  industryCheckbox: true,
-  companyCpr: '98-7654321',          // Business Tax ID (EIN) — must differ from guarantor SSN
-  companyFirstName: 'Test Business LLC', // Legal Business Name
-  companyLastName: 'Test DBA',        // Business DBA Name
-  companyType: 'Limited Liability Company (LLC)',
-  businessStartDate: '01/2020',       // MM/YYYY
-  companyUrl: 'https://example.com',
-  companyPhoneNumber: '5551234567',
-  companyEmail: 'business@example.com',
-  companyStreetNumber: '123',         // picklist/autocomplete
-  companyStreetName: 'Main Street',
-  companyUnit: 'Suite 100',
-  companyCity: 'New York',
-  companyState: 'New York',
-  companyZip: '10001',
-  loanAmount: '50000',
-  loanReason: 'Working Capital',
-  paymentFrequency: 'Weekly',
-  loanTerm: '12 Months',
-  loanDescription: 'Test application — do not process.',
-  guarantorFirstName: 'John',
-  guarantorLastName: 'Doe',
-  guarantorStreetNumber: '456',       // picklist/autocomplete
-  guarantorStreetName: 'Oak Avenue',
-  guarantorUnit: 'Apt 2B',
-  guarantorCity: 'New York',
-  guarantorState: 'New York',
-  guarantorZip: '10001',
-  guarantorCell: '5559876543',
-  guarantorPhoneNumber: '5551112222',
-  guarantorEmail: 'john.doe@example.com',
-  guarantorCpr: '123-45-6789',        // SSN
-  guarantorDOB: '1985-01-15',         // native date input (yyyy-mm-dd)
-  guarantorPercentage: '100',
-};
-
-// Select an option in a MUI Select by clicking it open and choosing the option
-// by exact text.
-async function selectMui(page, comboId, optionText) {
-  await page.click(`#${comboId}`);
-  await page.waitForSelector('[role="listbox"] [role="option"]', { timeout: 5_000 });
-  await page.getByRole('option', { name: optionText, exact: true }).click();
-  await page.waitForTimeout(200);
-}
-
-// The Street Number fields are autocomplete comboboxes: type the value, then
-// pick the matching/typed option if one appears, otherwise leave the typed text.
-async function fillStreetNumber(page, comboId, value) {
-  await page.click(`#${comboId}`);
-  await page.type(`#${comboId}`, value, { delay: 60 });
-  await page.waitForTimeout(800);
-  const option = page.locator('[role="listbox"] [role="option"]').first();
-  if (await option.count().then(c => c > 0).catch(() => false)) {
-    await option.click().catch(() => page.keyboard.press('Escape'));
-  } else {
-    await page.keyboard.press('Escape').catch(() => {});
-  }
-  await page.waitForTimeout(200);
-}
-
-// Fill the New Loan Application with TEST_DATA. Does NOT save or submit.
-async function fillApplication(page) {
-  const d = TEST_DATA;
-
-  // Business Information
-  if (d.industryCheckbox) await page.locator('input[name="industryCheckbox"]').check().catch(() => {});
-  await page.fill('#companyCpr', d.companyCpr);
-  await page.fill('#companyFirstName', d.companyFirstName);
-  await page.fill('#companyLastName', d.companyLastName);
-  await selectMui(page, 'mui-2', d.companyType);
-  await page.fill('#businessStartDate', d.businessStartDate);
-  await page.fill('#companyUrl', d.companyUrl);
-  await page.fill('#companyPhoneNumber', d.companyPhoneNumber);
-  await page.fill('#companyEmail', d.companyEmail);
-  await fillStreetNumber(page, 'mui-4', d.companyStreetNumber);
-  await page.fill('#companyStreetName', d.companyStreetName);
-  await page.fill('#companyUnit', d.companyUnit);
-  await page.fill('#companyCity', d.companyCity);
-  await selectMui(page, 'mui-6', d.companyState);
-  await page.fill('#companyZip', d.companyZip);
-  console.log('Filled: Business Information');
-
-  // Loan Information
-  await page.fill('#loanAmount', d.loanAmount);
-  await selectMui(page, 'mui-8', d.loanReason);
-  await selectMui(page, 'mui-10', d.paymentFrequency);
-  await selectMui(page, 'mui-12', d.loanTerm);
-  await page.fill('#loanDescription', d.loanDescription);
-  console.log('Filled: Loan Information');
-
-  // Guarantor Information
-  await page.fill('#guarantorFirstName', d.guarantorFirstName);
-  await page.fill('#guarantorLastName', d.guarantorLastName);
-  await fillStreetNumber(page, 'mui-14', d.guarantorStreetNumber);
-  await page.fill('#guarantorStreetName', d.guarantorStreetName);
-  await page.fill('#guarantorUnit', d.guarantorUnit);
-  await page.fill('#guarantorCity', d.guarantorCity);
-  await selectMui(page, 'mui-16', d.guarantorState);
-  await page.fill('#guarantorZip', d.guarantorZip);
-  await page.fill('#guarantorCell', d.guarantorCell);
-  await page.fill('#guarantorPhoneNumber', d.guarantorPhoneNumber);
-  await page.fill('#guarantorEmail', d.guarantorEmail);
-  await page.fill('#guarantorCpr', d.guarantorCpr);
-  await page.fill('#guarnatorDOB', d.guarantorDOB); // note: their id has a typo
-  await page.fill('#guarantorPercentage', d.guarantorPercentage);
-  console.log('Filled: Guarantor Information');
-
-  console.log('Application filled with test data — NOT saved or submitted.');
-}
-
-// Wait for an async page (Turbo/XHR) to settle and have visible content, then
-// log its URL and title so we can see where we landed.
 async function settleAndLog(page, label) {
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {
     console.log(`${label}: networkidle not reached in 20s (continuing).`);
@@ -178,24 +283,11 @@ async function settleAndLog(page, label) {
     () => (document.body?.innerText || '').trim().length > 0,
     { timeout: 10_000 }
   ).catch(() => console.log(`${label}: no visible body text after 10s (continuing).`));
-  await page.waitForTimeout(2500); // final settle for late-rendering widgets
-
+  await page.waitForTimeout(2500);
   const title = await page.title().catch(() => '');
   console.log(`${label}: ${page.url()} — "${title}"`);
 }
 
-async function snapshot(page) {
-  const finalUrl = page.url();
-  const title = await page.title();
-  const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 5000) || '');
-  const fields = await dumpFields(page);
-  return { finalUrl, title, bodyText, fields };
-}
-
-// Opens the iou portal, optionally logs in, and dumps the form structure of
-// whatever loads (login page and, if credentials are present, the page after
-// login). Diagnostic-only: lets a geo-blocked operator see the portal via the
-// US-West server and capture selectors for building the real automator.
 async function inspect() {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
@@ -212,7 +304,6 @@ async function inspect() {
 
   try {
     const page = await context.newPage();
-
     page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
     page.on('pageerror', err => consoleLogs.push(`[pageerror] ${err.message}`));
     page.on('requestfailed', req =>
@@ -230,70 +321,41 @@ async function inspect() {
       console.log('networkidle not reached within 30s (continuing).');
     });
 
-    const loginPage = await snapshot(page);
-    console.log(`Login page: ${loginPage.title} — ${loginPage.forms.length} form(s) found.`);
+    const finalUrl = page.url();
+    const title = await page.title();
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 5000) || '');
+    const fields = await dumpFields(page);
+    const loginPage = { finalUrl, title, bodyText, fields };
+    console.log(`Login page: ${title}`);
 
     let loggedIn = null;
     let loginError = null;
 
     if (IOU_USERNAME && IOU_PASSWORD) {
       try {
-        loggedIn = await attemptLogin(page, loginPage.forms);
-        console.log(`Post-login URL: ${loggedIn.finalUrl} — ${loggedIn.forms.length} form(s).`);
+        await page.fill('#user_email', IOU_USERNAME);
+        await page.fill('#user_password', IOU_PASSWORD);
+        const beforeUrl = page.url();
+        await Promise.all([
+          page.waitForURL(u => u.toString() !== beforeUrl, { timeout: 30_000 }).catch(() => {}),
+          page.click('input[type="submit"], button[type="submit"]'),
+        ]);
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+        const loggedInFields = await dumpFields(page);
+        loggedIn = { finalUrl: page.url(), title: await page.title(), fields: loggedInFields };
+        console.log(`Post-login URL: ${loggedIn.finalUrl}`);
       } catch (err) {
         loginError = err.message;
         console.log(`Login attempt failed: ${err.message}`);
       }
-    } else {
-      console.log('IOU_USERNAME/IOU_PASSWORD not set — skipping login.');
     }
 
-    return {
-      success: true,
-      status,
-      loginPage,
-      loggedIn,
-      loginError,
-      consoleLogs,
-      failedRequests,
-    };
+    return { success: true, status, loginPage, loggedIn, loginError, consoleLogs, failedRequests };
   } finally {
     await browser.close();
   }
 }
 
-// Fill the email/password fields by their detected names and submit, then wait
-// for navigation away from the login URL.
-async function attemptLogin(page, forms) {
-  const inputs = forms.flatMap(f => f.inputs);
-  const emailInput = inputs.find(i =>
-    i.type === 'email' || /email|login|user/i.test(`${i.name} ${i.id} ${i.placeholder}`));
-  const passwordInput = inputs.find(i => i.type === 'password');
-
-  if (!emailInput || !passwordInput) {
-    throw new Error(`Could not locate login fields (email=${!!emailInput}, password=${!!passwordInput})`);
-  }
-
-  const sel = i => (i.id ? `#${i.id}` : `[name="${i.name}"]`);
-  console.log(`Filling login: email=${sel(emailInput)} password=${sel(passwordInput)}`);
-
-  await page.fill(sel(emailInput), IOU_USERNAME);
-  await page.fill(sel(passwordInput), IOU_PASSWORD);
-
-  const beforeUrl = page.url();
-  await Promise.all([
-    page.waitForURL(url => url.toString() !== beforeUrl, { timeout: 30_000 }).catch(() => {}),
-    page.click('button[type="submit"], input[type="submit"], button'),
-  ]);
-
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  return snapshot(page);
-}
-
-// Opens the portal, optionally logs in, and returns a full-page PNG buffer so a
-// geo-blocked operator can view the actual rendered page (e.g. inline in Postman).
-// When preSubmit is true, fills the credentials but stops BEFORE clicking Log In,
-// so the password field's dots confirm it was actually populated.
 async function screenshot({ preSubmit = false, newApplication = false, fillTestData = false } = {}) {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
@@ -320,7 +382,6 @@ async function screenshot({ preSubmit = false, newApplication = false, fillTestD
         if (preSubmit) {
           console.log('preSubmit mode — capturing page before clicking Log In.');
         } else {
-          // submit triggers a full-page navigation (Rails form POST); wait for it
           await Promise.all([
             page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {}),
             page.click('input[type="submit"], button[type="submit"]'),
@@ -333,8 +394,7 @@ async function screenshot({ preSubmit = false, newApplication = false, fillTestD
             await settleAndLog(page, 'New Application');
 
             if (fillTestData) {
-              await fillApplication(page);
-              await page.waitForTimeout(1000);
+              await submitLoan({ demo: true }, null, null, null);
             } else {
               const fields = await dumpFields(page);
               const picklists = fields.filter(f => f.control === 'picklist').length;
@@ -355,12 +415,8 @@ async function screenshot({ preSubmit = false, newApplication = false, fillTestD
   }
 }
 
-// Captures the iou screenshot and uploads it to a Salesforce record as a
-// ContentVersion, so it can be viewed from Salesforce (no image streamed back
-// through Railway — avoids the request-timeout limit entirely).
 async function screenshotToSalesforce(recordId = DEFAULT_SF_RECORD_ID, options = {}) {
   if (!recordId) throw new Error('No Salesforce recordId provided (and no default set)');
-
   const png = await screenshot(options);
   const title = `iou Portal Screenshot - ${new Date().toISOString()}`;
   console.log(`Uploading iou screenshot to Salesforce record ${recordId}...`);
@@ -369,4 +425,4 @@ async function screenshotToSalesforce(recordId = DEFAULT_SF_RECORD_ID, options =
   return { success: true, recordId, contentVersion: result };
 }
 
-module.exports = { inspect, screenshot, screenshotToSalesforce };
+module.exports = { submitLoan, inspect, screenshot, screenshotToSalesforce };

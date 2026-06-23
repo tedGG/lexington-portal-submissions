@@ -89,7 +89,6 @@ async function downloadContentVersion(contentVersionId, fileName) {
     return await download();
   } catch (err) {
     if (err.message === 'UNAUTHORIZED') {
-      // Token expired — re-authenticate once and retry
       cachedToken = null;
       token = await getToken();
       return await download();
