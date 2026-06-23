@@ -169,8 +169,9 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   });
 
+  let page;
   try {
-    const page = await context.newPage();
+    page = await context.newPage();
     await login(page);
     await openNewApplication(page);
 
@@ -230,6 +231,21 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     }
 
     return { success: true, message: 'Application form populated — not submitted.' };
+  } catch (err) {
+    // Upload a screenshot of whatever the page looks like when the error occurs.
+    if (page && businessData_?.salesforceRecordId) {
+      try {
+        const png = await page.screenshot({ fullPage: true }).catch(() => null);
+        if (png) {
+          const title = `IOU Error Screenshot - ${new Date().toISOString()}`;
+          const result = await uploadScreenshot(png.toString('base64'), title, businessData_.salesforceRecordId);
+          console.log(`Error screenshot uploaded: ${JSON.stringify(result)}`);
+        }
+      } catch (uploadErr) {
+        console.log(`Failed to upload error screenshot: ${uploadErr.message}`);
+      }
+    }
+    throw err;
   } finally {
     await browser.close();
   }
