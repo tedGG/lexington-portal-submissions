@@ -12,6 +12,7 @@ const DEFAULT_SF_RECORD_ID = '';
 
 async function login(page) {
   await page.goto(`${IOU_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForSelector('#user_email', { timeout: 30_000 });
   await page.fill('#user_email', IOU_USERNAME);
   await page.fill('#user_password', IOU_PASSWORD);
   await Promise.all([
