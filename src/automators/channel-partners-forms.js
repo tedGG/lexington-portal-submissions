@@ -1,4 +1,4 @@
-const { inputByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown } = require('../helpers/vuetify');
+const { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown } = require('../helpers/vuetify');
 
 const TEST_DATA = {
   businessName: 'Testing Portal Submissions (Nazar)',
@@ -99,6 +99,12 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
   }
 
   if (contactData.streetAddress) {
+    // While "Same as Billing" is checked the address fields show a copy of the
+    // billing address. Clearing it re-renders them as new inputs and leaves the
+    // old ones hidden in the DOM — remember the current one so we can wait for
+    // it to go away instead of filling a stale element.
+    const staleStreetId = await inputIdByLabel(page, 'Street Address', n);
+
     await page.evaluate((nth) => {
       const normalize = s => s?.trim().replace(/\s*\*\s*$/, '').trim();
       const labels = [...document.querySelectorAll('label')].filter(
@@ -117,6 +123,9 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
       }
     }, n);
     console.log(`Cleared contact[${contactIndex}]: Same as Billing or Shipping Address`);
+    if (staleStreetId) {
+      await page.locator(`#${staleStreetId}`).waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {});
+    }
     await waitForLabel(page, 'Street Address', n, 5_000).catch(() => {});
 
     const streetEl = await inputByLabel(page, 'Street Address', n);

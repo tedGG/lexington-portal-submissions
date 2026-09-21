@@ -8,8 +8,13 @@ function findLabelFor({ text, nth }) {
   return labels[nth]?.getAttribute('for') || null;
 }
 
+// Id of the input for the nth visible label, or null (no logging).
+async function inputIdByLabel(page, labelText, nth = 0) {
+  return page.evaluate(findLabelFor, { text: labelText, nth });
+}
+
 async function inputByLabel(page, labelText, nth = 0) {
-  const id = await page.evaluate(findLabelFor, { text: labelText, nth });
+  const id = await inputIdByLabel(page, labelText, nth);
   if (!id) { console.log(`Label not found: "${labelText}" [${nth}]`); return null; }
   return page.locator(`#${id}`);
 }
@@ -55,4 +60,4 @@ async function openDropdown(page, labelText, nth = 0) {
   await input.locator('xpath=ancestor::div[contains(@class,"v-field")][1]').click();
 }
 
-module.exports = { inputByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown };
+module.exports = { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown };
