@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
-const { downloadContentVersion } = require('../helpers/salesforce');
+const { downloadContentVersion, uploadScreenshot } = require('../helpers/salesforce');
+const { dismissCookieBanner } = require('../helpers/vuetify');
 
 const DEMO_PDF = Buffer.from(
   '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
@@ -20,27 +21,42 @@ const TEST_FILES = [
 ];
 
 const baseName = fileName => fileName.replace(/\.[^.]+$/, '');
+const escapeRegExp = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 async function visibleDialogText(page) {
   const texts = await page.locator('.v-overlay__content:visible').allInnerTexts().catch(() => []);
   return texts.map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | ') || '(no dialog on screen)';
 }
 
-function inFileList(name) {
+function inFileList(pattern) {
+  const re = new RegExp(pattern);
   return [...document.querySelectorAll('body *')].some(el =>
     el.childElementCount === 0 &&
     el.offsetParent !== null &&
     !el.closest('.v-overlay-container, .v-overlay') &&
-    el.textContent.includes(name)
+    re.test(el.textContent)
   );
 }
 
+const listedPattern = fileName => `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-${escapeRegExp(baseName(fileName))}`;
+
 async function isListed(page, fileName) {
-  return page.evaluate(inFileList, baseName(fileName)).catch(() => false);
+  return page.evaluate(inFileList, listedPattern(fileName)).catch(() => false);
 }
 
 async function waitListed(page, fileName, timeout) {
-  return page.waitForFunction(inFileList, baseName(fileName), { timeout }).then(() => true, () => false);
+  return page.waitForFunction(inFileList, listedPattern(fileName), { timeout }).then(() => true, () => false);
+}
+
+async function attachFailureScreenshot(page, fileName, recordId) {
+  if (!recordId) return;
+  try {
+    const png = await page.screenshot({ fullPage: true });
+    await uploadScreenshot(png.toString('base64'), `channel-partners-upload-failed-${baseName(fileName)}`, recordId);
+    console.log(`${fileName}: failure screenshot attached to Salesforce record ${recordId}`);
+  } catch (err) {
+    console.log(`${fileName}: could not attach failure screenshot — ${err.message}`);
+  }
 }
 
 async function closeDialog(page, dialog) {
@@ -62,9 +78,15 @@ async function selectCategory(page, dialog, category) {
   const field = dialog.locator('.v-select .v-field');
   const option = page.locator('.v-overlay__content .v-list-item').filter({ hasText: category }).first();
   for (let attempt = 1; attempt <= 2; attempt++) {
+    await dismissCookieBanner(page);
     if (!(await option.isVisible().catch(() => false))) await field.click();
     await option.waitFor({ state: 'visible', timeout: 5_000 });
-    await option.click({ force: true });
+    try {
+      await option.click({ timeout: 3_000 });
+    } catch {
+      console.log(`Option "${category}" is covered by another element, clicking it directly`);
+      await option.dispatchEvent('click');
+    }
     if (await categoryShown(page, field, category)) return;
     if (attempt === 1) console.log(`Category "${category}" not confirmed in the field, clicking again`);
   }
@@ -105,11 +127,12 @@ async function uploadOne(page, file, tmpPath) {
   }
 }
 
-async function uploadFiles(page, files, demo = false) {
+async function uploadFiles(page, files, demo = false, recordId = null) {
   if (!demo && (!files || files.length === 0)) return { uploaded: [], failed: [] };
 
   await page.locator('.v-tab', { hasText: /file upload/i }).click();
   await page.locator('.file-upload-cover__input').waitFor({ state: 'attached', timeout: 15_000 });
+  await dismissCookieBanner(page);
 
   const filesToUpload = demo ? TEST_FILES : files;
   console.log(`Uploading ${filesToUpload.length} file(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
@@ -129,6 +152,7 @@ async function uploadFiles(page, files, demo = false) {
     } catch (err) {
       console.log(`${file.fileName}: FAILED — ${err.message.split('\n')[0]}`);
       failed.push(file.fileName);
+      await attachFailureScreenshot(page, file.fileName, recordId);
       await closeDialog(page, addFilesDialog(page));
     } finally {
       if (tmpPath) try { fs.unlinkSync(tmpPath); } catch {}

@@ -1,4 +1,4 @@
-const { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown } = require('../helpers/vuetify');
+const { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown, dismissCookieBanner } = require('../helpers/vuetify');
 
 const TEST_DATA = {
   businessName: 'Testing Portal Submissions (Nazar)',
@@ -143,12 +143,7 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
 }
 
 async function fillApplicationForm(page, data) {
-  try {
-    await page.locator('button', { hasText: /^ALLOW COOKIES$/ }).click({ timeout: 3000 });
-    console.log('Cookie banner dismissed');
-  } catch {
-    console.log('No cookie banner');
-  }
+  await dismissCookieBanner(page);
 
   const bizSearch = await inputByLabel(page, 'Search businesses');
   if (bizSearch && data.businessName) {

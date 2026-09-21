@@ -43,10 +43,18 @@ async function waitForValue(page, locator, timeout = 2_000) {
   await page.waitForFunction(el => !!el.value, handle, { timeout }).catch(() => {});
 }
 
+async function dismissCookieBanner(page) {
+  const btn = page.getByRole('button', { name: /allow cookies/i });
+  if (!(await btn.isVisible().catch(() => false))) return;
+  await btn.click().catch(() => {});
+  await btn.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {});
+  console.log('Cookie banner dismissed');
+}
+
 async function openDropdown(page, labelText, nth = 0) {
   const input = await inputByLabel(page, labelText, nth);
   if (!input) { console.log(`Dropdown not found: ${labelText} [${nth}]`); return; }
   await input.locator('xpath=ancestor::div[contains(@class,"v-field")][1]').click();
 }
 
-module.exports = { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown };
+module.exports = { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown, dismissCookieBanner };

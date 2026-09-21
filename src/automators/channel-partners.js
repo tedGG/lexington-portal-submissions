@@ -29,6 +29,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   });
 
@@ -68,7 +69,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     }
     console.log(`Contacts filled after ${elapsed()}`);
 
-    const uploads = await uploadFiles(page, files, businessData.demo === true);
+    const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
     const duration = elapsed();
