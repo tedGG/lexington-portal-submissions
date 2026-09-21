@@ -20,21 +20,23 @@ async function waitForLabel(page, labelText, nth = 0, timeout = 15_000) {
   await page.waitForFunction(findLabelFor, { text: labelText, nth }, { timeout });
 }
 
-async function pickVuetifyOption(page, text, timeout = 5_000) {
+async function pickVuetifyOption(page, text, timeout = 5_000, fallbackToFirst = true) {
   const options = page.locator('.v-overlay__content .v-list-item', { hasNotText: /no data/i });
   try {
     await options.first().waitFor({ state: 'visible', timeout });
   } catch {
     console.log('No dropdown options found');
-    return;
+    return false;
   }
   const texts = await options.allInnerTexts();
   console.log('Dropdown options:', texts);
   if (text) {
     const match = options.filter({ hasText: text }).first();
-    if (await match.isVisible().catch(() => false)) { await match.click(); return; }
+    if (await match.isVisible().catch(() => false)) { await match.click(); return true; }
   }
+  if (!fallbackToFirst) return false;
   await options.first().click();
+  return true;
 }
 
 async function waitForValue(page, locator, timeout = 2_000) {

@@ -6,6 +6,7 @@ const TEST_DATA = {
   federalTaxId: '12-3456789',
   useOfFunds: 'Advertising',
   businessType: null,
+  industry: 'Retail',
   stateOfIncorporation: null,
   phone: '5551234567',
   email: 'test@acmecorp.com',
@@ -177,6 +178,16 @@ async function fillApplicationForm(page, data) {
   await openDropdown(page, 'Business Type');
   await pickVuetifyOption(page, data.businessType || null);
   console.log('Selected: Business Type');
+
+  if (data.industry) {
+    await openDropdown(page, 'Industry');
+    if (await pickVuetifyOption(page, data.industry, 5_000, false)) {
+      console.log(`Selected: Industry (${data.industry})`);
+    } else {
+      await page.keyboard.press('Escape');
+      console.log(`Industry "${data.industry}" not found in portal options, left empty`);
+    }
+  }
 
   await openDropdown(page, 'State Of Incorporation');
   await pickVuetifyOption(page, data.stateOfIncorporation || null);
