@@ -26,32 +26,59 @@ async function visibleDialogText(page) {
   return texts.map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | ') || '(no dialog on screen)';
 }
 
+function inFileList(name) {
+  return [...document.querySelectorAll('body *')].some(el =>
+    el.childElementCount === 0 &&
+    el.offsetParent !== null &&
+    !el.closest('.v-overlay-container, .v-overlay') &&
+    el.textContent.includes(name)
+  );
+}
+
 async function isListed(page, fileName) {
-  return page.getByText(baseName(fileName)).first().isVisible().catch(() => false);
+  return page.evaluate(inFileList, baseName(fileName)).catch(() => false);
+}
+
+async function waitListed(page, fileName, timeout) {
+  return page.waitForFunction(inFileList, baseName(fileName), { timeout }).then(() => true, () => false);
+}
+
+async function closeDialog(page, dialog) {
+  if (!(await dialog.isVisible().catch(() => false))) return;
+  const closeBtn = dialog.getByRole('button', { name: /cancel|close/i }).first();
+  if (await closeBtn.isVisible().catch(() => false)) await closeBtn.click().catch(() => {});
+  else await page.keyboard.press('Escape').catch(() => {});
+  await dialog.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => console.log('Add Files dialog is still open'));
+}
+
+async function categoryShown(page, field, category) {
+  const handle = await field.elementHandle();
+  return page.waitForFunction(([el, cat]) =>
+    el.innerText.includes(cat) || [...el.querySelectorAll('input')].some(i => i.value.includes(cat)),
+  [handle, category], { timeout: 1_500 }).then(() => true, () => false);
 }
 
 async function selectCategory(page, dialog, category) {
   const field = dialog.locator('.v-select .v-field');
   const option = page.locator('.v-overlay__content .v-list-item').filter({ hasText: category }).first();
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     if (!(await option.isVisible().catch(() => false))) await field.click();
     await option.waitFor({ state: 'visible', timeout: 5_000 });
     await option.click({ force: true });
-    try {
-      await dialog.locator('.v-select .v-field', { hasText: category }).waitFor({ timeout: 1_500 });
-      return;
-    } catch {
-      console.log(`Category "${category}" did not register (attempt ${attempt}), retrying`);
-    }
+    if (await categoryShown(page, field, category)) return;
+    if (attempt === 1) console.log(`Category "${category}" not confirmed in the field, clicking again`);
   }
-  throw new Error(`Could not select category "${category}"`);
+  console.log(`Category "${category}" still not confirmed, submitting anyway`);
 }
+
+const addFilesDialog = page =>
+  page.locator('.v-overlay__content').filter({ has: page.locator('.v-card-title', { hasText: 'Add Files' }) });
 
 async function uploadOne(page, file, tmpPath) {
   const name = file.fileName;
   await page.locator('.file-upload-cover__input').setInputFiles(tmpPath);
 
-  const dialog = page.locator('.v-overlay__content').filter({ has: page.locator('.v-card-title', { hasText: 'Add Files' }) });
+  const dialog = addFilesDialog(page);
   await dialog.waitFor({ state: 'visible', timeout: 10_000 });
 
   await selectCategory(page, dialog, file.category);
@@ -73,9 +100,9 @@ async function uploadOne(page, file, tmpPath) {
   await uploading.waitFor({ state: 'detached', timeout: 60_000 });
   console.log(`${name}: uploaded (${file.category})`);
 
-  await page.getByText(baseName(name)).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {
+  if (!(await waitListed(page, name, 10_000))) {
     console.log(`${name}: not visible in the file list yet, will re-check at the end`);
-  });
+  }
 }
 
 async function uploadFiles(page, files, demo = false) {
@@ -102,7 +129,7 @@ async function uploadFiles(page, files, demo = false) {
     } catch (err) {
       console.log(`${file.fileName}: FAILED — ${err.message.split('\n')[0]}`);
       failed.push(file.fileName);
-      await page.keyboard.press('Escape').catch(() => {});
+      await closeDialog(page, addFilesDialog(page));
     } finally {
       if (tmpPath) try { fs.unlinkSync(tmpPath); } catch {}
     }

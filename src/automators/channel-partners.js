@@ -32,12 +32,15 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   });
 
+  const startedAt = Date.now();
+  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+
   try {
     const page = await context.newPage();
     await login(page, context);
 
     await page.waitForLoadState('networkidle');
-    console.log(`Page URL after auth: ${page.url()}`);
+    console.log(`Logged in after ${elapsed()} — ${page.url()}`);
 
     await page.getByRole('button', { name: /new application/i }).click();
     await waitForLabel(page, 'Federal Tax ID');
@@ -45,6 +48,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
     const data = businessData.demo ? TEST_DATA : businessData;
     await fillApplicationForm(page, data);
+    console.log(`Business form filled after ${elapsed()}`);
 
     await page.locator('.v-tab', { hasText: 'CONTACTS' }).click();
     await waitForLabel(page, 'First Name');
@@ -62,12 +66,15 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       }
       await fillContactForm(page, contacts[i], i);
     }
+    console.log(`Contacts filled after ${elapsed()}`);
 
     const uploads = await uploadFiles(page, files, businessData.demo === true);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
+    const duration = elapsed();
+    console.log(`Channel Partners submission finished in ${duration}`);
 
-    return { success: true, message: 'Application form filled', files: uploads };
+    return { success: true, message: 'Application form filled', files: uploads, duration };
   } finally {
     await browser.close();
   }
