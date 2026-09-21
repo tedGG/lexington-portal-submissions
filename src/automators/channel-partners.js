@@ -72,10 +72,9 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
-    const duration = elapsed();
-    console.log(`Channel Partners submission finished in ${duration}`);
+    console.log(`Channel Partners submission finished in ${elapsed()}`);
 
-    return { success: true, message: 'Application form filled', files: uploads, duration };
+    return { success: true, message: 'Application form filled', files: uploads };
   } finally {
     await browser.close();
   }

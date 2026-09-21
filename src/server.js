@@ -6,6 +6,7 @@ const headway = require('./automators/headway');
 const channelPartners = require('./automators/channel-partners');
 const iou = require('./automators/iou');
 const { submitTestForm } = require('./test-automator');
+const { reportSubmission } = require('./helpers/submissionStatus');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,24 +31,31 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-function createLoanHandler(automator) {
+function createLoanHandler(automator, lender) {
   return (req, res) => {
-    const { businessData, contact1Data, contact2Data, files } = req.body ?? {};
+    const { businessData, contact1Data, contact2Data, files, submissionId } = req.body ?? {};
     if (!businessData) {
       return res.status(400).json({ error: 'Missing businessData in request body' });
     }
 
+    const recordId = submissionId ?? businessData.salesforceRecordId ?? null;
     const jobId = randomUUID();
     const logs = [];
+    const startedAt = new Date();
     jobs.set(jobId, { status: 'pending', logs });
 
-    jobLogStorage.run(logs, () => {
-      automator.submitLoan(businessData, contact1Data, contact2Data, files)
-        .then(result => jobs.set(jobId, { status: 'done', result, logs }))
-        .catch(err => {
-          console.error('Loan submission failed:', err);
-          jobs.set(jobId, { status: 'error', error: err.message, logs });
-        });
+    jobLogStorage.run(logs, async () => {
+      let job;
+      try {
+        const result = await automator.submitLoan(businessData, contact1Data, contact2Data, files);
+        job = { status: 'done', result, logs };
+        job.salesforce = await reportSubmission(recordId, { lender, result, logs, startedAt });
+      } catch (err) {
+        console.error('Loan submission failed:', err);
+        job = { status: 'error', error: err.message, logs };
+        job.salesforce = await reportSubmission(recordId, { lender, error: err, logs, startedAt });
+      }
+      jobs.set(jobId, job);
     });
 
     res.status(202).json({ jobId });
@@ -56,9 +64,9 @@ function createLoanHandler(automator) {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway));
-app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners));
-app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou));
+app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway, 'Headway'));
+app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners, 'Channel Partners'));
+app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou, 'IOU Financial'));
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
   const jobId = randomUUID();

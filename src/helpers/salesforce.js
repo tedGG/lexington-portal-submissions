@@ -59,6 +59,67 @@ async function getToken() {
   return cachedToken;
 }
 
+function jsonRequest(method, url, accessToken, payload) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const body = payload === undefined ? null : JSON.stringify(payload);
+    const req = https.request({
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+        resolve({ status: res.statusCode, data });
+      });
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+async function sfRequest(method, apiPath, payload) {
+  let token = await getToken();
+  let res = await jsonRequest(method, `${token.instance_url}${apiPath}`, token.access_token, payload);
+  if (res.status === 401) {
+    cachedToken = null;
+    token = await getToken();
+    res = await jsonRequest(method, `${token.instance_url}${apiPath}`, token.access_token, payload);
+  }
+  if (res.status >= 400) {
+    throw new Error(`Salesforce ${method} ${apiPath} failed (HTTP ${res.status}): ${JSON.stringify(res.data)}`);
+  }
+  return res.data;
+}
+
+let objectByKeyPrefix = null;
+
+async function objectNameForId(recordId) {
+  if (!objectByKeyPrefix) {
+    const { sobjects } = await sfRequest('GET', '/services/data/v59.0/sobjects/');
+    objectByKeyPrefix = Object.fromEntries(sobjects.filter(o => o.keyPrefix).map(o => [o.keyPrefix, o.name]));
+  }
+  const name = objectByKeyPrefix[recordId.slice(0, 3)];
+  if (!name) throw new Error(`No Salesforce object matches id prefix "${recordId.slice(0, 3)}"`);
+  return name;
+}
+
+async function updateRecord(recordId, fields) {
+  const objectName = await objectNameForId(recordId);
+  await sfRequest('PATCH', `/services/data/v59.0/sobjects/${objectName}/${recordId}`, fields);
+  return objectName;
+}
+
 function fetchFile(url, accessToken) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
@@ -133,4 +194,4 @@ async function uploadScreenshot(base64Data, title, recordId) {
   });
 }
 
-module.exports = { downloadContentVersion, uploadScreenshot };
+module.exports = { downloadContentVersion, uploadScreenshot, updateRecord };
