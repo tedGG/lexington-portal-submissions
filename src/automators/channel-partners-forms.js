@@ -180,12 +180,17 @@ async function fillApplicationForm(page, data) {
   console.log('Selected: Business Type');
 
   if (data.industry) {
-    await openDropdown(page, 'Industry');
-    if (await pickVuetifyOption(page, data.industry, 5_000, false)) {
-      console.log(`Selected: Industry (${data.industry})`);
-    } else {
-      await page.keyboard.press('Escape');
-      console.log(`Industry "${data.industry}" not found in portal options, left empty`);
+    const industry = await inputByLabel(page, 'Industry');
+    if (industry) {
+      await industry.click();
+      await industry.fill(data.industry);
+      if (await pickVuetifyOption(page, data.industry, 5_000, false)) {
+        console.log(`Selected: Industry (${data.industry})`);
+      } else {
+        await page.keyboard.press('Escape');
+        await industry.fill('');
+        console.log(`Industry "${data.industry}" not found in portal options, left empty`);
+      }
     }
   }
 
