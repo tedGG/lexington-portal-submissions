@@ -51,7 +51,7 @@ async function authenticate() {
   if (status !== 200) throw new Error(`Salesforce auth failed: ${body.error_description || body.error}`);
 
   console.log('Salesforce authenticated');
-  return body; // { access_token, instance_url, ... }
+  return body;
 }
 
 async function getToken() {

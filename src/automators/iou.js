@@ -8,8 +8,6 @@ const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
 
 const DEFAULT_SF_RECORD_ID = '';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 async function login(page) {
   await page.goto(`${IOU_URL}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForSelector('#user_email', { timeout: 30_000 });
@@ -30,7 +28,6 @@ async function openNewApplication(page) {
   console.log(`New Application opened. URL: ${page.url()}`);
 }
 
-// Select an option in a MUI Select by id.
 async function selectMui(page, comboId, optionText) {
   if (!optionText) return;
   await page.click(`#${comboId}`);
@@ -40,8 +37,6 @@ async function selectMui(page, comboId, optionText) {
   console.log(`Selected "${optionText}" for #${comboId}`);
 }
 
-// Street Number is an autocomplete combobox — type and pick first suggestion,
-// or leave as typed if no suggestions appear.
 async function fillStreetNumber(page, comboId, value) {
   if (!value) return;
   await page.click(`#${comboId}`);
@@ -64,10 +59,6 @@ async function safeFill(page, selector, value) {
   console.log(`Filled ${selector}`);
 }
 
-// ─── Data shaping ────────────────────────────────────────────────────────────
-
-// Salesforce sends businessData.inBusinessSince as "YYYY-MM" or "YYYY-MM-DD".
-// IOU wants "MM/YYYY".
 function formatStartDate(value) {
   if (!value) return null;
   const [year, month] = String(value).split('-');
@@ -75,13 +66,10 @@ function formatStartDate(value) {
   return `${month}/${year}`;
 }
 
-// Salesforce sends dateOfBirth as "YYYY-MM-DD". IOU native date input wants "YYYY-MM-DD".
-// (No conversion needed — pass through.)
 function formatDOB(value) {
   return value || null;
 }
 
-// Map Salesforce Entity_Type__c values to IOU Company Type picklist options.
 const COMPANY_TYPE_MAP = {
   'Corporation': 'Corporation',
   'General Partnership': 'General Partnership',
@@ -98,17 +86,10 @@ function mapCompanyType(value) {
   return COMPANY_TYPE_MAP[value] || value;
 }
 
-// IOU state picklist uses full names ("New York"), same as Salesforce BillingState.
-// Pass through — no mapping needed.
-
-// ─── Form fill ───────────────────────────────────────────────────────────────
-
 async function fillApplicationForm(page, businessData, contact1Data) {
-  // Industry checkbox — always check to certify
   await page.locator('input[name="industryCheckbox"]').check().catch(() => {});
   console.log('Checked: industry checkbox');
 
-  // ── Business Information ──
   await safeFill(page, '#companyCpr', businessData.federalTaxId);
   await safeFill(page, '#companyFirstName', businessData.businessName);
   await safeFill(page, '#companyLastName', businessData.dba);
@@ -125,7 +106,6 @@ async function fillApplicationForm(page, businessData, contact1Data) {
   await safeFill(page, '#companyZip', businessData.zipCode);
   console.log('Filled: Business Information');
 
-  // ── Loan Information ──
   await safeFill(page, '#loanAmount', businessData.loanAmount);
   await selectMui(page, 'mui-8', businessData.loanReason);
   await selectMui(page, 'mui-10', businessData.paymentFrequency);
@@ -133,7 +113,6 @@ async function fillApplicationForm(page, businessData, contact1Data) {
   await safeFill(page, '#loanDescription', businessData.loanDescription);
   console.log('Filled: Loan Information');
 
-  // ── Guarantor Information (contact1) ──
   if (contact1Data) {
     await safeFill(page, '#guarantorFirstName', contact1Data.firstName);
     await safeFill(page, '#guarantorLastName', contact1Data.lastName);
@@ -147,15 +126,13 @@ async function fillApplicationForm(page, businessData, contact1Data) {
     await safeFill(page, '#guarantorPhoneNumber', contact1Data.phone);
     await safeFill(page, '#guarantorEmail', contact1Data.email);
     await safeFill(page, '#guarantorCpr', contact1Data.ssn);
-    await safeFill(page, '#guarnatorDOB', formatDOB(contact1Data.dateOfBirth)); // typo in their id
+    await safeFill(page, '#guarnatorDOB', formatDOB(contact1Data.dateOfBirth));
     await safeFill(page, '#guarantorPercentage', contact1Data.percentageOwned);
     console.log('Filled: Guarantor Information');
   }
 
   console.log('Form populated — NOT saved or submitted.');
 }
-
-// ─── submitLoan (main entry point) ───────────────────────────────────────────
 
 async function submitLoan(businessData_, contact1Data, contact2Data, files) {
   if (!IOU_URL) throw new Error('IOU_URL is not set');
@@ -232,7 +209,6 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
 
     return { success: true, message: 'Application form populated — not submitted.' };
   } catch (err) {
-    // Upload a screenshot of whatever the page looks like when the error occurs.
     if (page && businessData_?.salesforceRecordId) {
       try {
         const png = await page.screenshot({ fullPage: true }).catch(() => null);
@@ -250,8 +226,6 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
     await browser.close();
   }
 }
-
-// ─── Diagnostic helpers (kept for inspection endpoints) ──────────────────────
 
 async function dumpFields(page) {
   const fields = await page.evaluate(() => {

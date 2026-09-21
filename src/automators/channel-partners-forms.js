@@ -56,9 +56,6 @@ const TEST_CONTACTS = [
   },
 ];
 
-// Street Address is an autocomplete: type, pick the first suggestion once it
-// renders, then close the menu. Picking a suggestion autofills City/Zip/State
-// asynchronously, so wait for that to land before the caller overwrites them.
 async function fillStreetAutocomplete(page, input, value, nth) {
   await input.click();
   await input.fill(value);
@@ -99,10 +96,6 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
   }
 
   if (contactData.streetAddress) {
-    // While "Same as Billing" is checked the address fields show a copy of the
-    // billing address. Clearing it re-renders them as new inputs and leaves the
-    // old ones hidden in the DOM — remember the current one so we can wait for
-    // it to go away instead of filling a stale element.
     const staleStreetId = await inputIdByLabel(page, 'Street Address', n);
 
     await page.evaluate((nth) => {

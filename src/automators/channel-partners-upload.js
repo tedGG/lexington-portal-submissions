@@ -19,62 +19,104 @@ const TEST_FILES = [
   { fileName: 'test-application.pdf', category: 'Application' },
 ];
 
+const baseName = fileName => fileName.replace(/\.[^.]+$/, '');
+
+async function visibleDialogText(page) {
+  const texts = await page.locator('.v-overlay__content:visible').allInnerTexts().catch(() => []);
+  return texts.map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | ') || '(no dialog on screen)';
+}
+
+async function isListed(page, fileName) {
+  return page.getByText(baseName(fileName)).first().isVisible().catch(() => false);
+}
+
+async function selectCategory(page, dialog, category) {
+  const field = dialog.locator('.v-select .v-field');
+  const option = page.locator('.v-overlay__content .v-list-item').filter({ hasText: category }).first();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (!(await option.isVisible().catch(() => false))) await field.click();
+    await option.waitFor({ state: 'visible', timeout: 5_000 });
+    await option.click({ force: true });
+    try {
+      await dialog.locator('.v-select .v-field', { hasText: category }).waitFor({ timeout: 1_500 });
+      return;
+    } catch {
+      console.log(`Category "${category}" did not register (attempt ${attempt}), retrying`);
+    }
+  }
+  throw new Error(`Could not select category "${category}"`);
+}
+
+async function uploadOne(page, file, tmpPath) {
+  const name = file.fileName;
+  await page.locator('.file-upload-cover__input').setInputFiles(tmpPath);
+
+  const dialog = page.locator('.v-overlay__content').filter({ has: page.locator('.v-card-title', { hasText: 'Add Files' }) });
+  await dialog.waitFor({ state: 'visible', timeout: 10_000 });
+
+  await selectCategory(page, dialog, file.category);
+  await dialog.locator('button[type="submit"]').click();
+
+  const uploading = page.locator('.v-card-text', { hasText: /uploading/i });
+  try {
+    await uploading.waitFor({ state: 'visible', timeout: 10_000 });
+  } catch {
+    const dialogClosed = !(await dialog.isVisible().catch(() => false));
+    if (dialogClosed && await isListed(page, name)) {
+      console.log(`${name}: upload finished before the progress dialog was seen`);
+      return;
+    }
+    throw new Error(`upload did not start after submit. On screen: ${await visibleDialogText(page)}`);
+  }
+
+  await page.getByRole('button', { name: /^ok$/i }).click();
+  await uploading.waitFor({ state: 'detached', timeout: 60_000 });
+  console.log(`${name}: uploaded (${file.category})`);
+
+  await page.getByText(baseName(name)).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {
+    console.log(`${name}: not visible in the file list yet, will re-check at the end`);
+  });
+}
 
 async function uploadFiles(page, files, demo = false) {
-  if (!demo && (!files || files.length === 0)) return;
+  if (!demo && (!files || files.length === 0)) return { uploaded: [], failed: [] };
 
   await page.locator('.v-tab', { hasText: /file upload/i }).click();
   await page.locator('.file-upload-cover__input').waitFor({ state: 'attached', timeout: 15_000 });
-  console.log('Navigated to File Upload tab');
 
   const filesToUpload = demo ? TEST_FILES : files;
+  console.log(`Uploading ${filesToUpload.length} file(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
 
+  const failed = [];
   for (const file of filesToUpload) {
     let tmpPath = null;
     try {
       if (demo) {
         tmpPath = path.join('/tmp', `${randomUUID()}-${file.fileName}`);
         fs.writeFileSync(tmpPath, DEMO_PDF);
-        console.log(`Created demo file: ${file.fileName}`);
       } else {
-        console.log(`Downloading from Salesforce: ${file.fileName} (${file.contentVersionId})`);
         tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName);
-        console.log(`Downloaded: ${file.fileName}`);
+        console.log(`${file.fileName}: downloaded from Salesforce (${file.contentVersionId})`);
       }
-
-      await page.locator('.file-upload-cover__input').setInputFiles(tmpPath);
-      try {
-        await page.locator('.v-card-title', { hasText: 'Add Files' }).waitFor({ state: 'visible', timeout: 10_000 });
-      } catch {
-        console.log(`Dialog did not open for ${file.fileName}, skipping`);
-        continue;
-      }
-      console.log(`Add Files dialog opened for: ${file.fileName}`);
-
-      const dialog = page.locator('.v-overlay__content').filter({ has: page.locator('.v-card-title', { hasText: 'Add Files' }) });
-      await dialog.locator('.v-select .v-field').click();
-      const categoryItem = page.locator('.v-list-item').filter({ hasText: file.category }).first();
-      await categoryItem.waitFor({ state: 'visible', timeout: 5_000 });
-      await page.waitForTimeout(300); // let the menu's open transition finish before the forced click
-      await categoryItem.click({ force: true });
-      console.log(`Selected category: ${file.category}`);
-
-      await dialog.locator('button[type="submit"]').click();
-      await page.locator('.v-card-text', { hasText: /uploading/i }).waitFor({ state: 'visible', timeout: 10_000 });
-      console.log(`Upload initiated for: ${file.fileName}`);
-
-      await page.getByRole('button', { name: /^ok$/i }).click();
-      await page.locator('.v-card-text', { hasText: /uploading/i }).waitFor({ state: 'detached', timeout: 10_000 });
-
-      await page.locator('.v-list-item', { hasText: file.fileName.replace(/\.pdf$/i, '') }).waitFor({ state: 'visible', timeout: 30_000 });
-      console.log(`File confirmed in list: ${file.fileName}`);
+      await uploadOne(page, file, tmpPath);
     } catch (err) {
-      console.log(`Error uploading ${file.fileName}: ${err.message}`);
-      try { await page.keyboard.press('Escape'); } catch {}
+      console.log(`${file.fileName}: FAILED — ${err.message.split('\n')[0]}`);
+      failed.push(file.fileName);
+      await page.keyboard.press('Escape').catch(() => {});
     } finally {
       if (tmpPath) try { fs.unlinkSync(tmpPath); } catch {}
     }
   }
+
+  const uploaded = [];
+  const missing = [];
+  for (const file of filesToUpload) {
+    (await isListed(page, file.fileName) ? uploaded : missing).push(file.fileName);
+  }
+  console.log(`File upload summary: ${uploaded.length}/${filesToUpload.length} in portal list` +
+    (missing.length ? `. Missing: ${missing.join(', ')}` : ''));
+
+  return { uploaded, failed: [...new Set([...failed, ...missing])] };
 }
 
 module.exports = { uploadFiles, TEST_FILES };

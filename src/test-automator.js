@@ -16,14 +16,11 @@ async function submitTestForm(data) {
     await page.fill('#userNumber', data.phone);
     await page.fill('#currentAddress', data.address);
 
-    // Gender radio — click the label (direct radio click is blocked by CSS)
     await page.locator('label[for="gender-radio-1"]').click();
 
-    // Scroll submit into view and click (page has sticky ads that block it)
     await page.locator('#submit').scrollIntoViewIfNeeded();
     await page.locator('#submit').click();
 
-    // Wait for success modal
     await page.waitForSelector('#example-modal-sizes-title-lg', { timeout: 10_000 });
     const modalTitle = await page.locator('#example-modal-sizes-title-lg').textContent();
 

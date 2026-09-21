@@ -63,11 +63,11 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       await fillContactForm(page, contacts[i], i);
     }
 
-    await uploadFiles(page, files, businessData.demo === true);
+    const uploads = await uploadFiles(page, files, businessData.demo === true);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
 
-    return { success: true, message: 'Application form filled' };
+    return { success: true, message: 'Application form filled', files: uploads };
   } finally {
     await browser.close();
   }

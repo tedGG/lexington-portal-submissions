@@ -77,9 +77,6 @@ app.post('/inspect/iou', requireApiKey, (_req, res) => {
   res.status(202).json({ jobId });
 });
 
-// Single-request screenshot: runs the browser and streams the PNG back so it
-// renders inline in Postman. Kept fast enough to finish within Railway's ~30s
-// request limit (see iou.screenshot).
 app.get('/inspect/iou/screenshot', requireApiKey, async (req, res) => {
   try {
     const png = await iou.screenshot({
@@ -94,8 +91,6 @@ app.get('/inspect/iou/screenshot', requireApiKey, async (req, res) => {
   }
 });
 
-// Screenshot the iou portal and upload it to a Salesforce record (async job —
-// view the image in Salesforce). Optional ?recordId=<OpportunityId>.
 app.post('/inspect/iou/screenshot-sf', requireApiKey, (req, res) => {
   const recordId = req.query.recordId;
   const preSubmit = req.query.preSubmit === 'true';
