@@ -24,7 +24,7 @@ async function uploadFiles(page, files, demo = false) {
   if (!demo && (!files || files.length === 0)) return;
 
   await page.locator('.v-tab', { hasText: /file upload/i }).click();
-  await page.waitForTimeout(1500);
+  await page.locator('.file-upload-cover__input').waitFor({ state: 'attached', timeout: 15_000 });
   console.log('Navigated to File Upload tab');
 
   const filesToUpload = demo ? TEST_FILES : files;
@@ -53,9 +53,10 @@ async function uploadFiles(page, files, demo = false) {
 
       const dialog = page.locator('.v-overlay__content').filter({ has: page.locator('.v-card-title', { hasText: 'Add Files' }) });
       await dialog.locator('.v-select .v-field').click();
-      await page.waitForTimeout(800);
-      await page.locator('.v-list-item').filter({ hasText: file.category }).first().click({ force: true });
-      await page.waitForTimeout(500);
+      const categoryItem = page.locator('.v-list-item').filter({ hasText: file.category }).first();
+      await categoryItem.waitFor({ state: 'visible', timeout: 5_000 });
+      await page.waitForTimeout(300); // let the menu's open transition finish before the forced click
+      await categoryItem.click({ force: true });
       console.log(`Selected category: ${file.category}`);
 
       await dialog.locator('button[type="submit"]').click();
@@ -67,7 +68,6 @@ async function uploadFiles(page, files, demo = false) {
 
       await page.locator('.v-list-item', { hasText: file.fileName.replace(/\.pdf$/i, '') }).waitFor({ state: 'visible', timeout: 30_000 });
       console.log(`File confirmed in list: ${file.fileName}`);
-      await page.waitForTimeout(500);
     } catch (err) {
       console.log(`Error uploading ${file.fileName}: ${err.message}`);
       try { await page.keyboard.press('Escape'); } catch {}

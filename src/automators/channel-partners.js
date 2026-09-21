@@ -3,6 +3,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
 const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./channel-partners-forms');
+const { waitForLabel } = require('../helpers/vuetify');
 const { uploadFiles } = require('./channel-partners-upload');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
@@ -25,7 +26,6 @@ async function isLoggedIn(page) {
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
   const browser = await chromium.launch({
     headless: true,
-    slowMo: 800,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   const context = await browser.newContext({
@@ -40,14 +40,14 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     console.log(`Page URL after auth: ${page.url()}`);
 
     await page.getByRole('button', { name: /new application/i }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(5000);
+    await waitForLabel(page, 'Federal Tax ID');
+    console.log('New Application form ready');
 
     const data = businessData.demo ? TEST_DATA : businessData;
     await fillApplicationForm(page, data);
 
     await page.locator('.v-tab', { hasText: 'CONTACTS' }).click();
-    await page.waitForTimeout(2000);
+    await waitForLabel(page, 'First Name');
     console.log('Navigated to Contacts tab');
 
     const contacts = businessData.demo
@@ -57,7 +57,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     for (let i = 0; i < contacts.length; i++) {
       if (i > 0) {
         await page.getByRole('button', { name: /add new/i }).click();
-        await page.waitForTimeout(1500);
+        await waitForLabel(page, 'First Name', i);
         console.log('Clicked Add Contact');
       }
       await fillContactForm(page, contacts[i], i);
@@ -66,7 +66,6 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     await uploadFiles(page, files, businessData.demo === true);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
-    await page.waitForTimeout(10000);
 
     return { success: true, message: 'Application form filled' };
   } finally {

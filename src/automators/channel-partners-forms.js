@@ -1,4 +1,4 @@
-const { inputByLabel, pickVuetifyOption, openDropdown } = require('../helpers/vuetify');
+const { inputByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown } = require('../helpers/vuetify');
 
 const TEST_DATA = {
   businessName: 'Testing Portal Submissions (Nazar)',
@@ -56,6 +56,18 @@ const TEST_CONTACTS = [
   },
 ];
 
+// Street Address is an autocomplete: type, pick the first suggestion once it
+// renders, then close the menu. Picking a suggestion autofills City/Zip/State
+// asynchronously, so wait for that to land before the caller overwrites them.
+async function fillStreetAutocomplete(page, input, value, nth) {
+  await input.click();
+  await input.fill(value);
+  await pickVuetifyOption(page, null);
+  await page.keyboard.press('Escape');
+  const city = await inputByLabel(page, 'City', nth);
+  if (city) await waitForValue(page, city);
+}
+
 async function fillContactForm(page, contactData, contactIndex = 0) {
   const n = contactIndex;
 
@@ -104,17 +116,12 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
         el = el.parentElement;
       }
     }, n);
-    await page.waitForTimeout(800);
     console.log(`Cleared contact[${contactIndex}]: Same as Billing or Shipping Address`);
+    await waitForLabel(page, 'Street Address', n, 5_000).catch(() => {});
 
     const streetEl = await inputByLabel(page, 'Street Address', n);
     if (streetEl) {
-      await streetEl.click();
-      await streetEl.fill(contactData.streetAddress);
-      await page.waitForTimeout(1500);
-      await pickVuetifyOption(page, null);
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(300);
+      await fillStreetAutocomplete(page, streetEl, contactData.streetAddress, n);
       console.log(`Filled contact[${contactIndex}]: Street Address`);
     }
 
@@ -136,7 +143,6 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
 async function fillApplicationForm(page, data) {
   try {
     await page.locator('button', { hasText: /^ALLOW COOKIES$/ }).click({ timeout: 3000 });
-    await page.waitForTimeout(600);
     console.log('Cookie banner dismissed');
   } catch {
     console.log('No cookie banner');
@@ -181,12 +187,7 @@ async function fillApplicationForm(page, data) {
 
   const billingStreet = await inputByLabel(page, 'Street Address', 0);
   if (billingStreet && data.streetAddress) {
-    await billingStreet.click();
-    await billingStreet.fill(data.streetAddress);
-    await page.waitForTimeout(1500);
-    await pickVuetifyOption(page, null);
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await fillStreetAutocomplete(page, billingStreet, data.streetAddress, 0);
     console.log('Filled: Billing Street Address');
   }
 

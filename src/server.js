@@ -4,7 +4,6 @@ const { randomUUID } = require('crypto');
 const { AsyncLocalStorage } = require('async_hooks');
 const headway = require('./automators/headway');
 const channelPartners = require('./automators/channel-partners');
-const fundomate = require('./automators/fundomate');
 const iou = require('./automators/iou');
 const { submitTestForm } = require('./test-automator');
 
@@ -59,7 +58,6 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway));
 app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners));
-app.post('/submit-loan/fundomate', requireApiKey, createLoanHandler(fundomate));
 app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou));
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
