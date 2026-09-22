@@ -5,6 +5,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const headway = require('./automators/headway');
 const channelPartners = require('./automators/channel-partners');
 const iou = require('./automators/iou');
+const ibusiness = require('./automators/ibusiness');
 const { submitTestForm } = require('./test-automator');
 const { reportSubmission } = require('./helpers/submissionStatus');
 
@@ -39,6 +40,7 @@ function createLoanHandler(automator, lender) {
     }
 
     const recordId = submissionId ?? businessData.salesforceRecordId ?? null;
+    businessData.salesforceRecordId ??= recordId;
     const jobId = randomUUID();
     const logs = [];
     const startedAt = new Date();
@@ -67,6 +69,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway, 'Headway'));
 app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners, 'Channel Partners'));
 app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou, 'IOU Financial'));
+app.post('/submit-loan/ibusiness', requireApiKey, createLoanHandler(ibusiness, 'IBusiness'));
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
   const jobId = randomUUID();
