@@ -1,4 +1,4 @@
-const { fillInput, selectCombobox, setToggle, selectDualListbox, searchLookup } = require('../helpers/lightning');
+const { fillInput, selectCombobox, setToggle, selectDualListbox, searchLookup } = require('../../helpers/lightning');
 
 const TEST_DATA = {
   loanType: 'SBA',

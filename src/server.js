@@ -2,10 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const { randomUUID } = require('crypto');
 const { AsyncLocalStorage } = require('async_hooks');
-const headway = require('./automators/headway');
-const channelPartners = require('./automators/channel-partners');
-const iou = require('./automators/iou');
-const ibusiness = require('./automators/ibusiness');
+const channelPartners = require('./submission-services/channel-partners');
+const iou = require('./submission-services/iou');
+const ibusiness = require('./submission-services/ibusiness');
 const { submitTestForm } = require('./test-automator');
 const { reportSubmission } = require('./helpers/submissionStatus');
 
@@ -66,7 +65,6 @@ function createLoanHandler(automator, lender) {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.post('/submit-loan/headway', requireApiKey, createLoanHandler(headway, 'Headway'));
 app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners, 'Channel Partners'));
 app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou, 'IOU Financial'));
 app.post('/submit-loan/ibusiness', requireApiKey, createLoanHandler(ibusiness, 'IBusiness'));

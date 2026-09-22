@@ -2,7 +2,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { uploadScreenshot } = require('../helpers/salesforce');
+const { uploadScreenshot } = require('../../helpers/salesforce');
 
 const { IOU_URL, IOU_USERNAME, IOU_PASSWORD } = process.env;
 

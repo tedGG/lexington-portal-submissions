@@ -2,8 +2,8 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { uploadScreenshot } = require('../helpers/salesforce');
-const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./ibusiness-forms');
+const { uploadScreenshot } = require('../../helpers/salesforce');
+const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./forms');
 
 const { IBUSINESS_URL, IBUSINESS_USERNAME, IBUSINESS_PASSWORD } = process.env;
 
@@ -45,14 +45,13 @@ async function login(page) {
     throw new Error(`IBusiness login failed${error ? `: ${error}` : ''} (still on ${page.url()})`);
   }
 
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   console.log(`Logged in. URL: ${page.url()}`);
 }
 
 async function openNewApplication(page) {
   await page.goto(`${IBUSINESS_URL}/s/create-application`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.locator('input[name="Borrower Requested Amount"]').waitFor({ timeout: 30_000 });
-  await page.waitForTimeout(1500);
+  await page.locator('lightning-dual-listbox [data-source-list] [role="option"]').first().waitFor({ timeout: 30_000 });
   console.log(`Create Application form ready. URL: ${page.url()}`);
 }
 
@@ -76,7 +75,6 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
   const browser = await chromium.launch({
     headless: process.env.HEADLESS !== 'false',
-    slowMo: 300,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   const context = await browser.newContext({

@@ -1,4 +1,4 @@
-const { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown, dismissCookieBanner } = require('../helpers/vuetify');
+const { inputByLabel, inputIdByLabel, waitForLabel, waitForValue, pickVuetifyOption, openDropdown, dismissCookieBanner } = require('../../helpers/vuetify');
 
 const TEST_DATA = {
   businessName: 'Testing Portal Submissions (Nazar)',

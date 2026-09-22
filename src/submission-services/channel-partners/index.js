@@ -2,9 +2,9 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./channel-partners-forms');
-const { waitForLabel } = require('../helpers/vuetify');
-const { uploadFiles } = require('./channel-partners-upload');
+const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./forms');
+const { waitForLabel } = require('../../helpers/vuetify');
+const { uploadFiles } = require('./upload');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
 

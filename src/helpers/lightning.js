@@ -1,3 +1,7 @@
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function inputByName(page, name) {
   return page.locator(`input[name="${name}"], textarea[name="${name}"]`).first();
 }
@@ -9,7 +13,6 @@ async function fillInput(page, name, value) {
     console.log(`Input not found: "${name}"`);
     return false;
   }
-  await input.click();
   await input.fill(String(value));
   await input.press('Tab');
   console.log(`Filled: ${name}`);
@@ -18,23 +21,22 @@ async function fillInput(page, name, value) {
 
 async function selectCombobox(page, name, optionText) {
   if (!optionText) return false;
-  const input = inputByName(page, name);
-  if (!(await input.count())) {
+  const combobox = page.locator(`lightning-combobox:has(input[name="${name}"])`).first();
+  if (!(await combobox.count())) {
     console.log(`Combobox not found: "${name}"`);
     return false;
   }
-  await input.click();
-  const options = page.locator('lightning-base-combobox-item');
-  await options.first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
-  const match = page.getByRole('option', { name: optionText, exact: true }).first();
-  if (!(await match.isVisible().catch(() => false))) {
+  await combobox.locator(`input[name="${name}"]`).click();
+  const options = combobox.locator('lightning-base-combobox-item');
+  await options.first().waitFor({ state: 'visible', timeout: 10_000 });
+  const match = options.filter({ hasText: new RegExp(`^\\s*${escapeRegExp(optionText)}\\s*$`) }).first();
+  if (!(await match.count())) {
     const available = (await options.allInnerTexts()).map(s => s.trim()).filter(Boolean);
     await page.keyboard.press('Escape');
     console.log(`Option "${optionText}" not found for "${name}". Available: ${available.join(' | ')}`);
     return false;
   }
   await match.click();
-  await page.waitForTimeout(200);
   console.log(`Selected: ${name} = ${optionText}`);
   return true;
 }
@@ -47,7 +49,6 @@ async function setToggle(page, name, checked) {
   }
   if ((await input.isChecked()) === checked) return true;
   await input.click({ force: true });
-  await page.waitForTimeout(200);
   console.log(`Toggle: ${name} = ${checked}`);
   return true;
 }
@@ -67,7 +68,6 @@ async function selectDualListbox(page, values) {
     }
     await option.click();
     await listbox.locator('button[title="Move selection to Selected"], button[title*="Selected"]').first().click();
-    await page.waitForTimeout(200);
     selected.push(value);
     console.log(`Dual listbox: moved "${value}" to Selected`);
   }
@@ -81,8 +81,7 @@ async function searchLookup(page, placeholder, query, pickOption) {
     return null;
   }
   await input.click();
-  await input.fill('');
-  await input.type(String(query), { delay: 40 });
+  await input.fill(String(query));
   const results = page.locator('[data-key="dropdownresult"] [role="option"]');
   await results.first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
   const count = await results.count();
@@ -99,7 +98,6 @@ async function searchLookup(page, placeholder, query, pickOption) {
     return null;
   }
   await results.nth(idx).click();
-  await page.waitForTimeout(300);
   console.log(`Lookup "${placeholder}": picked ${names[idx]}`);
   return names[idx];
 }

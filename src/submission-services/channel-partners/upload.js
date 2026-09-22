@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
-const { downloadContentVersion, uploadScreenshot } = require('../helpers/salesforce');
-const { dismissCookieBanner } = require('../helpers/vuetify');
+const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
+const { dismissCookieBanner } = require('../../helpers/vuetify');
 
 const DEMO_PDF = Buffer.from(
   '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
