@@ -4,7 +4,7 @@ chromium.use(StealthPlugin());
 
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
-const { uploadBankStatements } = require('./upload');
+const { uploadDocuments } = require('./upload');
 
 const { KUDO_FUNDING_URL, KUDO_FUNDING_USERNAME, KUDO_FUNDING_PASSWORD } = process.env;
 
@@ -174,13 +174,13 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     await page.waitForTimeout(2_000);
     console.log('Step 4 complete — on Step 5 (Bank Statements).');
 
-    const uploads = await uploadBankStatements(frame, page, files, businessData?.demo === true);
+    const uploads = await uploadDocuments(frame, page, files, businessData?.demo === true);
     await shots.capture('Step 5 of 5 - Bank Statements');
-    console.log('Step 5 reached with statements attached. STOPPING — application NOT submitted.');
+    console.log('Step 5 reached with documents attached. STOPPING — application NOT submitted.');
 
     return {
       success: true,
-      message: 'Steps 1-4 completed and bank statements attached — stopped on Step 5, NOT submitted.',
+      message: 'Steps 1-4 completed and documents attached — stopped on Step 5, NOT submitted.',
       owners: owners.length,
       files: uploads,
       screenshots: shots.uploaded,

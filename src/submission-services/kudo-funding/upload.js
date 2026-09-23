@@ -13,10 +13,10 @@ const DEMO_PDF = Buffer.from(
 );
 
 const TEST_FILES = [
-  { fileName: 'test-bank-statement-1.pdf' },
-  { fileName: 'test-bank-statement-2.pdf' },
-  { fileName: 'test-bank-statement-3.pdf' },
-  { fileName: 'test-bank-statement-4.pdf' },
+  { fileName: 'test-bank-statement-1.pdf', fileType: 'Bank Statement' },
+  { fileName: 'test-bank-statement-2.pdf', fileType: 'Bank Statement' },
+  { fileName: 'test-bank-statement-3.pdf', fileType: 'Bank Statement' },
+  { fileName: 'test-signed-application.pdf', fileType: 'Signed Application' },
 ];
 
 const FILE_INPUT = '#file-input';
@@ -46,9 +46,9 @@ async function isListed(frame, fileName) {
     .catch(() => false);
 }
 
-async function uploadBankStatements(frame, page, files, demo = false) {
+async function uploadDocuments(frame, page, files, demo = false) {
   if (!demo && (!files || files.length === 0)) {
-    console.log('No files in payload, skipping bank statement upload');
+    console.log('No files in payload, skipping document upload');
     return { uploaded: [], failed: [] };
   }
 
@@ -67,7 +67,7 @@ async function uploadBankStatements(frame, page, files, demo = false) {
   if (!filesToUpload.length) return { uploaded: [], failed: skipped };
 
   await frame.locator(FILE_INPUT).waitFor({ state: 'attached', timeout: 30_000 });
-  console.log(`Uploading ${filesToUpload.length} bank statement(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
+  console.log(`Uploading ${filesToUpload.length} document(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
 
   const tmpPaths = [];
   const oversized = [];
@@ -90,7 +90,7 @@ async function uploadBankStatements(frame, page, files, demo = false) {
     await page.waitForTimeout(3_000);
     console.log(`Attached ${tmpPaths.length} file(s) to the dropzone`);
   } catch (err) {
-    console.log(`Bank statement upload FAILED — ${err.message.split('\n')[0]}`);
+    console.log(`Document upload FAILED — ${err.message.split('\n')[0]}`);
     return { uploaded: [], failed: requested.map(f => f.fileName) };
   } finally {
     for (const tmpPath of tmpPaths) { try { fs.unlinkSync(tmpPath); } catch {} }
@@ -102,10 +102,10 @@ async function uploadBankStatements(frame, page, files, demo = false) {
     if (oversized.includes(file.fileName)) continue;
     (await isListed(frame, file.fileName) ? uploaded : missing).push(file.fileName);
   }
-  console.log(`Bank statements attached: ${uploaded.length}/${filesToUpload.length - oversized.length}` +
+  console.log(`Documents attached: ${uploaded.length}/${filesToUpload.length - oversized.length}` +
     (missing.length ? `. Not visible in list: ${missing.join(', ')}` : ''));
 
   return { uploaded, failed: [...new Set([...skipped, ...oversized, ...missing])] };
 }
 
-module.exports = { uploadBankStatements, TEST_FILES, ACCEPTED_EXTENSIONS };
+module.exports = { uploadDocuments, TEST_FILES, ACCEPTED_EXTENSIONS };
