@@ -4,6 +4,7 @@ chromium.use(StealthPlugin());
 
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
+const { uploadBankStatements } = require('./upload');
 
 const { KUDO_FUNDING_URL, KUDO_FUNDING_USERNAME, KUDO_FUNDING_PASSWORD } = process.env;
 
@@ -19,6 +20,8 @@ const STEP_FOUR_READY = 'text=STEP 4 OF 5';
 const CONTINUE_BUTTON = 'button:has-text("Continue")';
 const NEXT_BUTTON = 'button:has-text("Next")';
 const VERIFY_BUTTON = 'button:has-text("Verify & Secure")';
+const CLAIM_BUTTON = 'button:has-text("Claim My Pre-Approval")';
+const STEP_FIVE_READY = 'text=STEP 5 OF 5';
 
 function appFrame(page) {
   return page.frameLocator(APP_FRAME);
@@ -163,14 +166,23 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     await shots.capture('Step 3 of 5 - Owner Verification');
     await advanceStep(frame, page, VERIFY_BUTTON, STEP_FOUR_READY, 'Step 3 (Owner Verification)');
     await page.waitForTimeout(2_000);
-    console.log('Step 3 complete — on Step 4 (Review & Agree). STOPPING — pre-approval NOT claimed.');
+    console.log('Step 3 complete — on Step 4 (Review & Agree).');
 
     await shots.capture('Step 4 of 5 - Review and Agree');
 
+    await advanceStep(frame, page, CLAIM_BUTTON, STEP_FIVE_READY, 'Step 4 (Review & Agree)');
+    await page.waitForTimeout(2_000);
+    console.log('Step 4 complete — on Step 5 (Bank Statements).');
+
+    const uploads = await uploadBankStatements(frame, page, files, businessData?.demo === true);
+    await shots.capture('Step 5 of 5 - Bank Statements');
+    console.log('Step 5 reached with statements attached. STOPPING — application NOT submitted.');
+
     return {
       success: true,
-      message: 'Steps 1-3 completed — stopped on Step 4 (Review & Agree), not submitted.',
+      message: 'Steps 1-4 completed and bank statements attached — stopped on Step 5, NOT submitted.',
       owners: owners.length,
+      files: uploads,
       screenshots: shots.uploaded,
     };
   } catch (err) {
