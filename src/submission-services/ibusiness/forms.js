@@ -105,6 +105,20 @@ function digits(value) {
   return value ? String(value).replace(/[^\d.]/g, '') : null;
 }
 
+function formatPhone(value) {
+  if (!value) return null;
+  let digits = String(value).replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length !== 10) {
+    console.log(`Phone "${value}" is not 10 digits (got ${digits.length}) — portal will reject it`);
+    return digits || null;
+  }
+  if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits)) {
+    console.log(`Phone "${value}" is not a valid US number (area code and exchange must start with 2-9) — portal will reject it`);
+  }
+  return digits;
+}
+
 function digitsOnly(value) {
   return value ? String(value).replace(/\D/g, '') : null;
 }
@@ -118,7 +132,7 @@ async function fillApplicationForm(page, data, contact) {
     await fillInput(page, 'FirstName', contact.firstName);
     await fillInput(page, 'LastName', contact.lastName);
     await fillInput(page, 'Email', contact.email);
-    await fillInput(page, 'Phone', contact.phone || contact.mobilePhone);
+    await fillInput(page, 'Phone', formatPhone(contact.phone || contact.mobilePhone));
     await fillInput(page, 'Primary Contact Street', joinStreet(contact.streetAddress, contact.streetAddressLine2));
     await fillInput(page, 'Primary Contact City', contact.city);
     await selectCombobox(page, 'Primary Contact State', contact.state);
@@ -156,4 +170,4 @@ async function fillApplicationForm(page, data, contact) {
   console.log('Filled: Financial Information');
 }
 
-module.exports = { fillApplicationForm, TEST_DATA, TEST_CONTACT, mapUseOfFunds, mapLoanType };
+module.exports = { fillApplicationForm, TEST_DATA, TEST_CONTACT, mapUseOfFunds, mapLoanType, formatPhone };
