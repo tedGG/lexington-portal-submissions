@@ -273,17 +273,23 @@ async function fillOwner(frame, page, contact, index) {
 
   await fillField(frame, 'Street Address', contact.streetAddress);
   await fillField(frame, 'City', contact.city);
-  await selectField(frame, page, 'State', contact.state);
+  await selectField(frame, page, 'State', mapState(contact.state, `Owner ${index + 1} State`));
   await fillField(frame, 'ZIP', contact.zipCode);
 
-  await setSlider(frame, page, 0, contact.creditScore, `Personal Credit Score (owner ${index + 1})`);
-  await setSlider(frame, page, 1, contact.percentageOwned, `Ownership Percentage (owner ${index + 1})`);
+  await setSlider(frame, page, 0, clampCreditScore(contact.creditScore), `Personal Credit Score (owner ${index + 1})`);
+  await setSlider(frame, page, 1, toNumber(contact.percentageOwned), `Ownership Percentage (owner ${index + 1})`);
   console.log(`Filled: Owner ${index + 1} (${contact.firstName || ''} ${contact.lastName || ''})`.trim());
 }
 
 async function fillStepThree(frame, page, data, contacts) {
-  const owners = (Array.isArray(contacts) ? contacts : [contacts]).filter(Boolean);
+  const owners = (Array.isArray(contacts) ? contacts : [contacts])
+    .filter(c => c && Object.values(c).some(v => v !== null && v !== undefined && v !== ''));
   if (!owners.length) return;
+
+  const total = owners.reduce((sum, o) => sum + (toNumber(o.percentageOwned) || 0), 0);
+  if (owners.length > 1 && Math.abs(total - 100) > 0.01) {
+    console.log(`Ownership percentages total ${total}% across ${owners.length} owners, not 100% — sending as provided`);
+  }
 
   for (let i = 0; i < owners.length; i++) {
     if (i > 0) {
@@ -297,9 +303,94 @@ async function fillStepThree(frame, page, data, contacts) {
 
   if (owners.length > 1 && owners[0].percentageOwned) {
     if (await expandOwner(frame, page, 0)) {
-      await setSlider(frame, page, 1, owners[0].percentageOwned, 'Ownership Percentage (owner 1, re-applied)');
+      await setSlider(frame, page, 1, toNumber(owners[0].percentageOwned), 'Ownership Percentage (owner 1, re-applied)');
     }
   }
+}
+
+const STATE_NAMES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+  'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
+  'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
+  'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico',
+  'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania',
+  'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+  'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
+];
+
+const STATE_ABBREVIATIONS = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
+  CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho',
+  IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana',
+  ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada',
+  NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina',
+  ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
+  RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas',
+  UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia',
+  WI: 'Wisconsin', WY: 'Wyoming',
+};
+
+function mapState(value, label = 'State') {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    const name = STATE_ABBREVIATIONS[raw.toUpperCase()];
+    if (name) return name;
+    console.log(`${label}: "${raw}" is not a state Kudo offers — leaving it empty`);
+    return null;
+  }
+
+  const match = STATE_NAMES.find(n => n.toLowerCase() === raw.toLowerCase());
+  if (match) return match;
+
+  console.log(`${label}: "${raw}" is not one of Kudo's 50 states — leaving it empty`);
+  return null;
+}
+
+function toBoolean(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return value;
+  const raw = String(value).trim().toLowerCase();
+  if (['true', 'yes', '1'].includes(raw)) return true;
+  if (['false', 'no', '0'].includes(raw)) return false;
+  console.log(`Expected a boolean but got "${value}" — leaving the question unanswered`);
+  return null;
+}
+
+function pickOption(value, options, fallback, label) {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  const match = options.find(o => o.toLowerCase() === raw.toLowerCase());
+  if (match) return match;
+  if (fallback) {
+    console.log(`${label}: "${raw}" is not a Kudo option — using "${fallback}"`);
+    return fallback;
+  }
+  console.log(`${label}: "${raw}" is not a Kudo option and there is no "Other" — leaving it empty`);
+  return null;
+}
+
+function clampCreditScore(value) {
+  const score = toNumber(value);
+  if (score === null) return null;
+  const clamped = Math.min(850, Math.max(300, Math.round(score)));
+  if (clamped !== Math.round(score)) {
+    console.log(`Credit score ${score} is outside 300-850 — clamped to ${clamped}`);
+  }
+  return clamped;
+}
+
+function cleanWebsite(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw || /^(na|n\/a|none|null|n\.a\.)$/i.test(raw)) {
+    console.log(`Website "${raw}" looks like a placeholder — leaving it empty`);
+    return null;
+  }
+  return raw;
 }
 
 function mapLoanPurposeValue(value) {
@@ -310,23 +401,23 @@ function mapLoanPurposeValue(value) {
 async function fillStepTwo(frame, page, data) {
   await fillField(frame, 'Street Address', data.streetAddress);
   await fillField(frame, 'City', data.city);
-  await selectField(frame, page, 'State', data.state || data.billingState);
+  await selectField(frame, page, 'State', mapState(data.state || data.billingState, 'Business State'));
   await fillField(frame, 'ZIP', data.zipCode);
   console.log('Filled: Business Address');
 
-  await selectField(frame, page, 'Business Industry', data.industry);
-  await selectField(frame, page, 'What do you need the money for?', data.loanPurpose || mapLoanPurposeValue(data.useOfFunds));
-  await selectField(frame, page, 'When do you need the money?', data.timeline);
+  await selectField(frame, page, 'Business Industry', pickOption(data.industry, INDUSTRY_OPTIONS, 'Other', 'Business Industry'));
+  await selectField(frame, page, 'What do you need the money for?', pickOption(mapLoanPurposeValue(data.loanPurpose || data.useOfFunds), LOAN_PURPOSE_OPTIONS, 'Other', 'Use of Funds'));
+  await selectField(frame, page, 'When do you need the money?', pickOption(data.timeline, TIMELINE_OPTIONS, null, 'Timeline'));
   console.log('Filled: Industry & Purpose');
 
-  await selectField(frame, page, 'Business Entity Type', data.entityType || data.businessType);
-  await selectField(frame, page, 'State of Formation', data.stateOfFormation);
+  await selectField(frame, page, 'Business Entity Type', pickOption(data.entityType || data.businessType, ENTITY_TYPE_OPTIONS, null, 'Business Entity Type'));
+  await selectField(frame, page, 'State of Formation', mapState(data.stateOfFormation, 'State of Formation'));
   await fillField(frame, 'Federal Tax ID (EIN)', digitsOnly(data.federalTaxId));
   await fillField(frame, 'Business Registration Date', isoDate(data.businessRegistrationDate));
   console.log('Filled: Entity & Registration');
 
-  await selectYesNo(frame, 'loans', data.hasOpenLoans);
-  await selectYesNo(frame, 'props', data.ownsInvestmentProperty);
+  await selectYesNo(frame, 'loans', toBoolean(data.hasOpenLoans));
+  await selectYesNo(frame, 'props', toBoolean(data.ownsInvestmentProperty));
   console.log('Filled: Additional Information');
 }
 
@@ -335,7 +426,7 @@ async function fillStepOne(frame, page, data, contact) {
   await fillField(frame, 'Business DBA Name', data.dba);
   await selectField(frame, page, 'Business Operating Time', data.businessOperatingTime || mapOperatingTime(data.inBusinessSince));
   await selectField(frame, page, 'Gross Monthly Revenue', data.grossMonthlyRevenue || mapMonthlyRevenue(data.annualRevenue));
-  await fillField(frame, 'Website', data.website);
+  await fillField(frame, 'Website', cleanWebsite(data.website));
   await selectField(frame, page, 'Loan Request', data.loanRequest || mapLoanRequest(data.loanAmount));
   console.log('Filled: Business Information');
 
@@ -349,6 +440,11 @@ async function fillStepOne(frame, page, data, contact) {
 }
 
 module.exports = {
+  mapState,
+  toBoolean,
+  pickOption,
+  clampCreditScore,
+  cleanWebsite,
   fillStepOne,
   fillStepTwo,
   fillStepThree,
