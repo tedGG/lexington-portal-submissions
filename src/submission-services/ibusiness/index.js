@@ -57,29 +57,99 @@ async function openNewApplication(page) {
 }
 
 async function collectValidationErrors(page) {
-  const messages = await page.evaluate(() => {
-    const out = [];
+  const found = await page.evaluate(() => {
+    const errors = [];
+    const empties = [];
     const walk = root => {
-      for (const el of root.querySelectorAll('.slds-form-element__help, [role="alert"], .slds-notify__content, .toastMessage')) {
-        const text = (el.innerText || '').trim();
-        if (text) out.push(text);
+      for (const el of root.querySelectorAll('.slds-has-error, [role="alert"], .slds-notify__content, .toastMessage')) {
+        const help = el.querySelector ? el.querySelector('.slds-form-element__help') : null;
+        const label = el.querySelector ? el.querySelector('label, .slds-form-element__label') : null;
+        const text = ((help && help.innerText) || el.innerText || '').trim();
+        if (text) errors.push(label ? `${label.innerText.trim()}: ${text}` : text);
+      }
+      for (const field of root.querySelectorAll('input, textarea')) {
+        const isRequired = field.required || field.getAttribute('aria-required') === 'true';
+        if (!isRequired || field.type === 'hidden') continue;
+        if ((field.value || '').trim()) continue;
+        const name = field.getAttribute('name')
+          || field.getAttribute('aria-label')
+          || field.getAttribute('placeholder');
+        if (name) empties.push(name);
       }
       for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
     };
     walk(document);
-    return out;
-  }).catch(() => []);
-  return [...new Set(messages)].join(' | ');
+    return { errors: [...new Set(errors)], empties: [...new Set(empties)] };
+  }).catch(() => ({ errors: [], empties: [] }));
+
+  const parts = [];
+  if (found.errors.length) parts.push(found.errors.join(' | '));
+  if (found.empties.length) parts.push(`empty required field(s): ${found.empties.join(', ')}`);
+  return parts.join(' — ');
+}
+
+function watchServerErrors(page) {
+  const seen = [];
+  const handler = async response => {
+    try {
+      const url = response.url();
+      if (!/aura|apexremote|webruntime|\/services\//i.test(url)) return;
+      if (response.status() >= 400) {
+        seen.push(`HTTP ${response.status()} on ${url.split('?')[0]}`);
+        return;
+      }
+      if (response.request().method() !== 'POST') return;
+      const body = await response.text().catch(() => '');
+      if (!body || !/"(?:message|errorMessage|exceptionMessage|stackTrace)"/.test(body)) return;
+      const match = body.match(/"(?:message|errorMessage|exceptionMessage)"\s*:\s*"([^"]{5,400})"/);
+      if (match) seen.push(match[1]);
+    } catch { /* diagnostics only */ }
+  };
+  page.on('response', handler);
+  return { seen, stop: () => page.off('response', handler) };
+}
+
+async function visibleModalText(page) {
+  return page.evaluate(() => {
+    const out = [];
+    const walk = root => {
+      for (const el of root.querySelectorAll('section.slds-modal, [role="dialog"], .slds-notify')) {
+        if (el.offsetParent === null && el.className.indexOf('slds-fade-in-open') < 0) continue;
+        const text = (el.innerText || '').replace(/\s+/g, ' ').trim();
+        if (text) out.push(text.slice(0, 300));
+      }
+      for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(document);
+    return [...new Set(out)].join(' || ');
+  }).catch(() => '');
 }
 
 async function saveApplication(page) {
+  const watcher = watchServerErrors(page);
   await page.getByRole('button', { name: /^save$/i }).first().click();
+  console.log('Clicked Save — waiting for the Files section...');
 
-  try {
-    await page.locator('button:has-text("Add Files")').first().waitFor({ timeout: 60_000 });
-  } catch {
+  const ready = page.locator('button:has-text("Add Files")').first();
+  let saved = false;
+  for (let elapsed = 0; elapsed < 90; elapsed += 5) {
+    if (await ready.count()) { saved = true; break; }
+    await page.waitForTimeout(5_000);
+    const modal = await visibleModalText(page);
+    if (modal) console.log(`After ${elapsed + 5}s — dialog on screen: ${modal}`);
+  }
+  watcher.stop();
+
+  if (!saved) {
     const errors = await collectValidationErrors(page);
-    throw new Error(`Save did not complete${errors ? ` — portal reported: ${errors}` : ' (no Files section appeared)'}`);
+    const modal = await visibleModalText(page);
+    const server = [...new Set(watcher.seen)].join(' | ');
+    const detail = [errors, modal && `dialog: ${modal}`, server && `server: ${server}`]
+      .filter(Boolean).join(' — ');
+    throw new Error(`Save did not complete${detail ? ` — ${detail}` : ' (no Files section, no error shown by the portal)'}`);
+  }
+  if (watcher.seen.length) {
+    console.log(`Save succeeded, but server reported: ${[...new Set(watcher.seen)].join(' | ')}`);
   }
   console.log('Application saved. (Application NOT submitted.)');
 
@@ -155,4 +225,4 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
   }
 }
 
-module.exports = { submitLoan };
+module.exports = { submitLoan, collectValidationErrors };

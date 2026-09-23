@@ -1,7 +1,7 @@
 const { updateRecord } = require('./salesforce');
 
 const MAX_RESPONSE_LENGTH = 30_000;
-const LOG_TAIL_LINES = 15;
+const LOG_TAIL_LINES = 60;
 
 function formatTimestamp(date) {
   return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');

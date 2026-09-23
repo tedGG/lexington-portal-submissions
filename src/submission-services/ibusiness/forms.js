@@ -89,7 +89,10 @@ function mapLoanType(value) {
 function formatDate(value) {
   if (!value) return null;
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return value;
+  if (!match) {
+    console.log(`Business Start Date: unexpected format "${value}" — leaving it empty`);
+    return null;
+  }
   const [, year, month, day] = match;
   return `${month}/${day}/${year}`;
 }
@@ -147,7 +150,6 @@ async function fillApplicationForm(page, data, contact) {
   console.log('Filled: Address Information');
 
   await fillInput(page, 'Gross Annual Sales', digits(data.grossAnnualSales));
-  await selectCombobox(page, 'Product Type', data.productType);
   await fillInput(page, 'Use of Funds Description', data.loanDescription);
   await fillInput(page, 'Borrower Requested Amount', digits(data.loanAmount));
   await selectDualListbox(page, mapUseOfFunds(data.useOfFunds));
