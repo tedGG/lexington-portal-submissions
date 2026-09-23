@@ -4,6 +4,7 @@ chromium.use(StealthPlugin());
 
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./forms');
+const { uploadFiles } = require('./upload');
 
 const { IBUSINESS_URL, IBUSINESS_USERNAME, IBUSINESS_PASSWORD } = process.env;
 
@@ -55,6 +56,45 @@ async function openNewApplication(page) {
   console.log(`Create Application form ready. URL: ${page.url()}`);
 }
 
+async function collectValidationErrors(page) {
+  const messages = await page.evaluate(() => {
+    const out = [];
+    const walk = root => {
+      for (const el of root.querySelectorAll('.slds-form-element__help, [role="alert"], .slds-notify__content, .toastMessage')) {
+        const text = (el.innerText || '').trim();
+        if (text) out.push(text);
+      }
+      for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(document);
+    return out;
+  }).catch(() => []);
+  return [...new Set(messages)].join(' | ');
+}
+
+async function saveApplication(page) {
+  await page.getByRole('button', { name: /^save$/i }).first().click();
+
+  try {
+    await page.locator('button:has-text("Add Files")').first().waitFor({ timeout: 60_000 });
+  } catch {
+    const errors = await collectValidationErrors(page);
+    throw new Error(`Save did not complete${errors ? ` — portal reported: ${errors}` : ' (no Files section appeared)'}`);
+  }
+  console.log('Application saved. (Application NOT submitted.)');
+
+  await page.getByRole('button', { name: /go to application/i }).first().click();
+  await page.waitForURL(/\/s\/opportunity\//, { timeout: 60_000 });
+  await page.locator('button:has-text("Submit Application")').first().waitFor({ timeout: 60_000 });
+  console.log(`Opened application record: ${page.url()}`);
+
+  await page.getByText('Files', { exact: true }).first().click();
+  await page.locator('button:has-text("Add Files")').first().waitFor({ timeout: 60_000 });
+  console.log('Files tab ready.');
+
+  return page.url();
+}
+
 async function uploadToSalesforce(page, recordId, title) {
   if (!recordId) {
     console.log('No opportunityId in payload, skipping screenshot upload');
@@ -91,11 +131,19 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const data = businessData?.demo ? TEST_DATA : businessData;
     const contact = businessData?.demo ? TEST_CONTACT : contact1Data;
     await fillApplicationForm(page, data, contact);
-    console.log('Form populated — NOT saved or submitted.');
+
+    const applicationUrl = await saveApplication(page);
+    const uploads = await uploadFiles(page, files, businessData?.demo === true, recordId);
 
     const screenshot = await uploadToSalesforce(page, recordId, `IBusiness Submission - ${data.businessName || 'Demo'}`);
 
-    return { success: true, message: 'Application form populated — not submitted.', screenshot };
+    return {
+      success: true,
+      message: 'Application saved and files uploaded — application NOT submitted.',
+      applicationUrl,
+      files: uploads,
+      screenshot,
+    };
   } catch (err) {
     if (page && recordId) {
       await uploadToSalesforce(page, recordId, `IBusiness Error Screenshot - ${new Date().toISOString()}`)

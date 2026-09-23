@@ -2,8 +2,8 @@ const { fillInput, selectCombobox, setToggle, selectDualListbox, searchLookup } 
 
 const TEST_DATA = {
   loanType: 'SBA',
-  businessName: 'Testing Portal Submissions (Nazar)',
-  dba: 'Testing Portal Submissions (Nazar) DBA',
+  businessName: 'Lexington Portal Test (not process)',
+  dba: 'Lexington Portal Test (not process)',
   federalTaxId: '12-3456789',
   naicsCode: '722511',
   useOfFunds: 'Working Capital',
@@ -81,6 +81,11 @@ function mapUseOfFunds(value) {
   return [...new Set(mapped)];
 }
 
+function mapLoanType(value) {
+  if (!value) return 'SBA';
+  return /sba/i.test(String(value)) ? 'SBA' : 'Conventional';
+}
+
 function formatDate(value) {
   if (!value) return null;
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -103,7 +108,7 @@ function digitsOnly(value) {
 
 async function fillApplicationForm(page, data, contact) {
   await selectCombobox(page, 'Referral Contact', data.referralContact);
-  await selectCombobox(page, 'Loan Type', data.loanType || 'SBA');
+  await selectCombobox(page, 'Loan Type', mapLoanType(data.loanType));
   console.log('Filled: Loan Type');
 
   if (contact) {
@@ -149,4 +154,4 @@ async function fillApplicationForm(page, data, contact) {
   console.log('Filled: Financial Information');
 }
 
-module.exports = { fillApplicationForm, TEST_DATA, TEST_CONTACT, mapUseOfFunds };
+module.exports = { fillApplicationForm, TEST_DATA, TEST_CONTACT, mapUseOfFunds, mapLoanType };

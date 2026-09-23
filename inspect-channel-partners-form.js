@@ -4,8 +4,6 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 chromium.use(StealthPlugin());
 
-const { loadSession } = require('./src/sessionManager');
-const SESSION_KEY = 'channel-partners';
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
 
 (async () => {
@@ -20,36 +18,19 @@ const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWO
 
   const page = await context.newPage();
 
-  const sessionLoaded = await loadSession(context, SESSION_KEY);
-  if (sessionLoaded) {
-    await page.goto(`${CHANNEL_PARTNERS_URL}/`);
-    await page.waitForLoadState('networkidle');
-    const loggedIn = !page.url().includes('/login') && !page.url().includes('auth0');
-    if (!loggedIn) {
-      await context.clearCookies();
-      await page.goto(`${CHANNEL_PARTNERS_URL}/login`);
-      await page.waitForLoadState('networkidle');
-      await page.fill('[id="1-email"]', CHANNEL_PARTNERS_USERNAME);
-      await page.fill('[id="1-password"]', CHANNEL_PARTNERS_PASSWORD);
-      await page.click('[id="1-submit"]');
-      await page.waitForFunction(() => !window.location.href.includes('/login'), { timeout: 20_000 });
-    }
-  } else {
-    await context.clearCookies();
-    await page.goto(`${CHANNEL_PARTNERS_URL}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.fill('[id="1-email"]', CHANNEL_PARTNERS_USERNAME);
-    await page.fill('[id="1-password"]', CHANNEL_PARTNERS_PASSWORD);
-    await page.click('[id="1-submit"]');
-    await page.waitForFunction(() => !window.location.href.includes('/login'), { timeout: 20_000 });
-  }
+  await context.clearCookies();
+  await page.goto(`${CHANNEL_PARTNERS_URL}/login`);
+  await page.waitForLoadState('networkidle');
+  await page.fill('[id="1-email"]', CHANNEL_PARTNERS_USERNAME);
+  await page.fill('[id="1-password"]', CHANNEL_PARTNERS_PASSWORD);
+  await page.click('[id="1-submit"]');
+  await page.waitForFunction(() => !window.location.href.includes('/login'), { timeout: 20_000 });
 
   await page.waitForLoadState('networkidle');
   await page.getByText('NEW APPLICATION').click();
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(5000);
 
-  // Dismiss cookie banner if present
   const cookieBtn = page.getByText('ALLOW COOKIES');
   if (await cookieBtn.isVisible().catch(() => false)) {
     await cookieBtn.click();

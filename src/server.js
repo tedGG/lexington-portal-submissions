@@ -5,6 +5,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const channelPartners = require('./submission-services/channel-partners');
 const iou = require('./submission-services/iou');
 const ibusiness = require('./submission-services/ibusiness');
+const kudoFunding = require('./submission-services/kudo-funding');
 const { submitTestForm } = require('./test-automator');
 const { reportSubmission } = require('./helpers/submissionStatus');
 
@@ -68,6 +69,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(channelPartners, 'Channel Partners'));
 app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou, 'IOU Financial'));
 app.post('/submit-loan/ibusiness', requireApiKey, createLoanHandler(ibusiness, 'IBusiness'));
+app.post('/submit-loan/kudo-funding', requireApiKey, createLoanHandler(kudoFunding, 'Kudo Funding'));
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
   const jobId = randomUUID();
