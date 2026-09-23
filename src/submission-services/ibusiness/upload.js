@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
 
@@ -127,7 +128,8 @@ async function closeModal(page) {
 
 async function materialize(file, demo) {
   if (demo) {
-    const tmpPath = path.join('/tmp', `${randomUUID()}-${file.fileName}`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lex-'));
+    const tmpPath = path.join(tmpDir, file.fileName);
     fs.writeFileSync(tmpPath, DEMO_PDF);
     return tmpPath;
   }
@@ -195,7 +197,7 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
     await closeModal(page);
     return { uploaded: [], failed: [...skipped, ...filesToUpload].map(f => f.fileName) };
   } finally {
-    for (const tmpPath of tmpPaths) { try { fs.unlinkSync(tmpPath); } catch {} }
+    for (const tmpPath of tmpPaths) { try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {} }
   }
 
   try {

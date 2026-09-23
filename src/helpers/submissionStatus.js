@@ -3,39 +3,62 @@ const { updateRecord } = require('./salesforce');
 const MAX_RESPONSE_LENGTH = 30_000;
 const LOG_TAIL_LINES = 60;
 
-function formatTimestamp(date) {
-  return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
-}
-
 function buildResponse({ lender, result, error, logs, startedAt, completedAt }) {
   const failedFiles = result?.files?.failed ?? [];
   const uploadedFiles = result?.files?.uploaded ?? [];
   const success = !error && failedFiles.length === 0;
 
-  const lines = [
-    success ? 'Success' : 'Error',
-    `Portal: ${lender}`,
-    `Completed: ${formatTimestamp(completedAt)}`,
-    `Duration: ${((completedAt - startedAt) / 1000).toFixed(1)}s`,
-  ];
-
-  if (result?.message) lines.push(result.message);
-  if (result?.files) {
-    lines.push(`Files uploaded: ${uploadedFiles.length}${uploadedFiles.length ? ` (${uploadedFiles.join(', ')})` : ''}`);
-    if (failedFiles.length) lines.push(`Files failed: ${failedFiles.join(', ')}`);
-  }
-
-  if (error) lines.push(`Error: ${error.message.split('\n')[0]}`);
-  if (!success) {
-    const tail = logs.slice(-LOG_TAIL_LINES);
-    if (tail.length) lines.push('', 'Last log lines:', ...tail.map(l => `  ${l}`));
-  }
-
-  const text = lines.join('\n');
-  return {
-    status: success ? 'Submitted' : 'Failed',
-    response: text.length > MAX_RESPONSE_LENGTH ? `${text.slice(0, MAX_RESPONSE_LENGTH)}\n…(truncated)` : text,
+  const payload = {
+    status: success ? 'Success' : 'Error',
+    portal: lender,
+    completedAt: completedAt.toISOString(),
+    durationSeconds: Number(((completedAt - startedAt) / 1000).toFixed(1)),
   };
+
+  if (result?.message) payload.message = result.message;
+  if (error) payload.error = error.message.split('\n')[0];
+  if (result?.applicationUrl) payload.applicationUrl = result.applicationUrl;
+  if (typeof result?.owners === 'number') payload.owners = result.owners;
+
+  if (result?.files) {
+    payload.files = {
+      uploadedCount: uploadedFiles.length,
+      uploaded: uploadedFiles,
+      failedCount: failedFiles.length,
+      failed: failedFiles,
+    };
+  }
+
+  if (Array.isArray(result?.screenshots) && result.screenshots.length) {
+    payload.screenshots = result.screenshots;
+  }
+
+  if (!success) payload.logs = logs.slice(-LOG_TAIL_LINES);
+
+  return { status: success ? 'Submitted' : 'Failed', response: serialize(payload) };
+}
+
+function serialize(payload) {
+  let json = JSON.stringify(payload);
+  if (json.length <= MAX_RESPONSE_LENGTH) return json;
+
+  while (payload.logs && payload.logs.length && json.length > MAX_RESPONSE_LENGTH) {
+    payload.logs = payload.logs.slice(Math.ceil(payload.logs.length / 4));
+    payload.logsTruncated = true;
+    json = JSON.stringify(payload);
+  }
+  if (json.length <= MAX_RESPONSE_LENGTH) return json;
+
+  const trimmed = {
+    status: payload.status,
+    portal: payload.portal,
+    completedAt: payload.completedAt,
+    durationSeconds: payload.durationSeconds,
+    error: payload.error,
+    message: payload.message,
+    truncated: true,
+  };
+  return JSON.stringify(trimmed).slice(0, MAX_RESPONSE_LENGTH);
 }
 
 async function reportSubmission(recordId, details) {

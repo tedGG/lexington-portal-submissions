@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
 const { dismissCookieBanner } = require('../../helpers/vuetify');
@@ -38,7 +39,7 @@ function inFileList(pattern) {
   );
 }
 
-const listedPattern = fileName => `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-${escapeRegExp(baseName(fileName))}`;
+const listedPattern = fileName => escapeRegExp(baseName(fileName));
 
 async function isListed(page, fileName) {
   return page.evaluate(inFileList, listedPattern(fileName)).catch(() => false);
@@ -142,7 +143,7 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
     let tmpPath = null;
     try {
       if (demo) {
-        tmpPath = path.join('/tmp', `${randomUUID()}-${file.fileName}`);
+        tmpPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lex-')), file.fileName);
         fs.writeFileSync(tmpPath, DEMO_PDF);
       } else {
         tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName);
@@ -155,7 +156,7 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
       await attachFailureScreenshot(page, file.fileName, recordId);
       await closeDialog(page, addFilesDialog(page));
     } finally {
-      if (tmpPath) try { fs.unlinkSync(tmpPath); } catch {}
+      if (tmpPath) try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {}
     }
   }
 

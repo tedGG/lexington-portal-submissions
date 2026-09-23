@@ -1,6 +1,7 @@
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { URLSearchParams } = require('url');
@@ -141,7 +142,8 @@ async function downloadContentVersion(contentVersionId, fileName) {
   const download = async () => {
     const url = `${token.instance_url}/services/data/v59.0/sobjects/ContentVersion/${contentVersionId}/VersionData`;
     const buf = await fetchFile(url, token.access_token);
-    const tmpPath = path.join('/tmp', `${randomUUID()}-${fileName}`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lex-'));
+    const tmpPath = path.join(tmpDir, path.basename(fileName));
     fs.writeFileSync(tmpPath, buf);
     return tmpPath;
   };
