@@ -160,7 +160,16 @@ async function downloadContentVersion(contentVersionId, fileName) {
   }
 }
 
+function isScreenshotUploadEnabled() {
+  const value = process.env.UPLOAD_SCREENSHOTS;
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
 async function uploadScreenshot(base64Data, title, recordId) {
+  if (!isScreenshotUploadEnabled()) {
+    console.log(`Screenshot upload disabled (UPLOAD_SCREENSHOTS is not "true") — skipped "${title}"`);
+    return null;
+  }
   const token = await getToken();
 
   const body = JSON.stringify({
@@ -196,4 +205,4 @@ async function uploadScreenshot(base64Data, title, recordId) {
   });
 }
 
-module.exports = { downloadContentVersion, uploadScreenshot, updateRecord };
+module.exports = { downloadContentVersion, uploadScreenshot, updateRecord, isScreenshotUploadEnabled };

@@ -2,7 +2,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { uploadScreenshot } = require('../../helpers/salesforce');
+const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
 const { uploadDocuments } = require('./upload');
 const { maybeSubmit } = require('../../helpers/portalSubmit');
@@ -57,6 +57,10 @@ async function login(page) {
 }
 
 async function uploadToSalesforce(page, recordId, title) {
+  if (!isScreenshotUploadEnabled()) {
+    console.log(`Screenshots disabled — not capturing "${title}"`);
+    return null;
+  }
   if (!recordId) {
     console.log(`No opportunityId in payload, skipping screenshot upload (${title})`);
     return null;

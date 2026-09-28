@@ -2,7 +2,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
-const { uploadScreenshot } = require('../../helpers/salesforce');
+const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/salesforce');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./forms');
 const { uploadFiles } = require('./upload');
 const { maybeSubmit } = require('../../helpers/portalSubmit');
@@ -167,15 +167,23 @@ async function saveApplication(page) {
 }
 
 async function uploadToSalesforce(page, recordId, title) {
+  if (!isScreenshotUploadEnabled()) {
+    console.log(`Screenshots disabled — not capturing "${title}"`);
+    return null;
+  }
   if (!recordId) {
     console.log('No opportunityId in payload, skipping screenshot upload');
     return null;
   }
-  const png = await page.screenshot({ fullPage: true });
-  console.log('Screenshot taken.');
-  const result = await uploadScreenshot(png.toString('base64'), title, recordId);
-  console.log(`Screenshot uploaded to Salesforce ${recordId}: ${JSON.stringify(result)}`);
-  return result;
+  try {
+    const png = await page.screenshot({ fullPage: true });
+    const result = await uploadScreenshot(png.toString('base64'), title, recordId);
+    console.log(`Screenshot uploaded to Salesforce ${recordId}: ${title}`);
+    return result;
+  } catch (err) {
+    console.log(`Screenshot upload failed (ignored): ${err.message.split('\n')[0]}`);
+    return null;
+  }
 }
 
 const SUBMIT_BUTTON = 'button:has-text("Submit Application")';
