@@ -5,6 +5,7 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
 const { uploadDocuments } = require('./upload');
+const { maybeSubmit } = require('../../helpers/portalSubmit');
 
 const { KUDO_FUNDING_URL, KUDO_FUNDING_USERNAME, KUDO_FUNDING_PASSWORD } = process.env;
 
@@ -22,6 +23,7 @@ const NEXT_BUTTON = 'button:has-text("Next")';
 const VERIFY_BUTTON = 'button:has-text("Verify & Secure")';
 const CLAIM_BUTTON = 'button:has-text("Claim My Pre-Approval")';
 const STEP_FIVE_READY = 'text=STEP 5 OF 5';
+const SUBMIT_BUTTON = 'button:has-text("Submit & Get Funded Today")';
 
 function appFrame(page) {
   return page.frameLocator(APP_FRAME);
@@ -101,6 +103,19 @@ async function advanceStep(frame, page, buttonSelector, nextStepSelector, label)
   throw new Error(`Could not advance past ${label}${reported ? ` — portal reported: ${reported}` : ' (no error shown by the portal)'}`);
 }
 
+async function confirmKudoSubmit(page) {
+  await page.waitForTimeout(6_000);
+  const frame = page.frames().find(f => f.url().includes('/resource/'));
+  if (!frame) return '';
+  return frame.evaluate(() => {
+    const text = (document.body.innerText || '').replace(/\s+/g, ' ');
+    const hit = text.match(/(thank you|submitted|received|success|confirmation|we'?ll be in touch)[^.!]{0,120}/i);
+    const stillOnStep5 = /STEP 5 OF 5/.test(text);
+    return [hit ? `saw "${hit[0].trim()}"` : '', stillOnStep5 ? 'still on Step 5' : 'left Step 5']
+      .filter(Boolean).join('; ');
+  }).catch(() => '');
+}
+
 function stepCapturer(page, recordId, businessName) {
   const uploaded = [];
   return {
@@ -176,13 +191,23 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
     const uploads = await uploadDocuments(frame, page, files, businessData?.demo === true);
     await shots.capture('Step 5 of 5 - Bank Statements');
-    console.log('Step 5 reached with documents attached. STOPPING — application NOT submitted.');
+
+    const submission = await maybeSubmit(
+      frame.locator(SUBMIT_BUTTON),
+      page,
+      { lender: 'Kudo Funding', buttonLabel: 'Submit & Get Funded Today', confirm: confirmKudoSubmit }
+    );
+    if (submission.submitted) await shots.capture('Step 5 of 5 - After Submit');
 
     return {
       success: true,
-      message: 'Steps 1-4 completed and documents attached — stopped on Step 5, NOT submitted.',
+      message: submission.submitted
+        ? 'All 5 steps completed and application SUBMITTED.'
+        : 'Steps 1-4 completed and documents attached — stopped on Step 5, NOT submitted.',
       owners: owners.length,
       files: uploads,
+      submitted: submission.submitted,
+      submitConfirmation: submission.confirmation,
       screenshots: shots.uploaded,
     };
   } catch (err) {

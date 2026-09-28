@@ -19,6 +19,8 @@ function buildResponse({ lender, result, error, logs, startedAt, completedAt }) 
   if (error) payload.error = error.message.split('\n')[0];
   if (result?.applicationUrl) payload.applicationUrl = result.applicationUrl;
   if (typeof result?.owners === 'number') payload.owners = result.owners;
+  if (typeof result?.submitted === 'boolean') payload.submitted = result.submitted;
+  if (result?.submitConfirmation) payload.submitConfirmation = result.submitConfirmation;
 
   if (result?.files) {
     payload.files = {

@@ -5,6 +5,7 @@ chromium.use(StealthPlugin());
 const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./forms');
 const { waitForLabel } = require('../../helpers/vuetify');
 const { uploadFiles } = require('./upload');
+const { maybeSubmit } = require('../../helpers/portalSubmit');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
 
@@ -21,6 +22,17 @@ async function login(page, context) {
 async function isLoggedIn(page) {
   const url = page.url();
   return !url.includes('/login') && !url.includes('auth0');
+}
+
+const SUBMIT_BUTTON = 'button:has-text("SEND TO ELITE")';
+
+async function confirmChannelPartnersSubmit(page) {
+  await page.waitForTimeout(6_000);
+  const dialog = await page.locator('.v-overlay__content:visible').first().innerText().catch(() => '');
+  const body = await page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ')).catch(() => '');
+  const hit = body.match(/(submitted|sent|thank you|success|received)[^.!]{0,120}/i);
+  return [dialog && `dialog: ${dialog.replace(/\s+/g, ' ').trim().slice(0, 160)}`, hit && `saw "${hit[0].trim()}"`]
+    .filter(Boolean).join('; ');
 }
 
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
@@ -72,9 +84,22 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId);
 
     await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
+
+    const submission = await maybeSubmit(
+      page.locator(SUBMIT_BUTTON),
+      page,
+      { lender: 'Channel Partners', buttonLabel: 'SEND TO ELITE', confirm: confirmChannelPartnersSubmit }
+    );
+
     console.log(`Channel Partners submission finished in ${elapsed()}`);
 
-    return { success: true, message: 'Application form filled', files: uploads };
+    return {
+      success: true,
+      message: submission.submitted ? 'Application form filled and SENT TO ELITE.' : 'Application form filled — not sent.',
+      files: uploads,
+      submitted: submission.submitted,
+      submitConfirmation: submission.confirmation,
+    };
   } finally {
     await browser.close();
   }

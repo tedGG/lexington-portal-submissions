@@ -5,6 +5,7 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./forms');
 const { uploadFiles } = require('./upload');
+const { maybeSubmit } = require('../../helpers/portalSubmit');
 
 const { IBUSINESS_URL, IBUSINESS_USERNAME, IBUSINESS_PASSWORD } = process.env;
 
@@ -177,6 +178,20 @@ async function uploadToSalesforce(page, recordId, title) {
   return result;
 }
 
+const SUBMIT_BUTTON = 'button:has-text("Submit Application")';
+
+async function confirmIBusinessSubmit(page) {
+  await page.waitForTimeout(5_000);
+  const stage = await page.evaluate(() => {
+    const body = document.body.innerText;
+    const match = body.match(/Stage\s*\n?\s*([A-Za-z ]{3,40})/);
+    return match ? match[1].trim() : '';
+  }).catch(() => '');
+  const gone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
+  return [stage && `stage now "${stage}"`, gone && 'Submit Application button no longer present']
+    .filter(Boolean).join('; ');
+}
+
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
   if (!IBUSINESS_URL) throw new Error('IBUSINESS_URL is not set');
   if (!IBUSINESS_USERNAME || !IBUSINESS_PASSWORD) throw new Error('IBUSINESS_USERNAME / IBUSINESS_PASSWORD are not set');
@@ -205,13 +220,23 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const applicationUrl = await saveApplication(page);
     const uploads = await uploadFiles(page, files, businessData?.demo === true, recordId);
 
+    const submission = await maybeSubmit(
+      page.locator(SUBMIT_BUTTON),
+      page,
+      { lender: 'IBusiness', buttonLabel: 'Submit Application', confirm: confirmIBusinessSubmit }
+    );
+
     const screenshot = await uploadToSalesforce(page, recordId, `IBusiness Submission - ${data.businessName || 'Demo'}`);
 
     return {
       success: true,
-      message: 'Application saved and files uploaded — application NOT submitted.',
+      message: submission.submitted
+        ? 'Application saved, files uploaded and SUBMITTED.'
+        : 'Application saved and files uploaded — application NOT submitted.',
       applicationUrl,
       files: uploads,
+      submitted: submission.submitted,
+      submitConfirmation: submission.confirmation,
       screenshot,
     };
   } catch (err) {
