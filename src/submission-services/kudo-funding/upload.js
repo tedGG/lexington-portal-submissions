@@ -3,6 +3,8 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion } = require('../../helpers/salesforce');
+const { normaliseFiles } = require('../../helpers/fileName');
+const { dismissInterstitial } = require('./modal');
 
 const DEMO_PDF = Buffer.from(
   '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
@@ -30,14 +32,14 @@ function isAccepted(fileName) {
   return ACCEPTED_EXTENSIONS.includes(path.extname(fileName).toLowerCase());
 }
 
-async function materialize(file, demo) {
+async function materialize(file, demo, sandbox) {
   if (demo) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lex-'));
     const tmpPath = path.join(tmpDir, file.fileName);
     fs.writeFileSync(tmpPath, DEMO_PDF);
     return tmpPath;
   }
-  const tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName);
+  const tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName, sandbox);
   console.log(`${file.fileName}: downloaded from Salesforce (${file.contentVersionId})`);
   return tmpPath;
 }
@@ -48,13 +50,13 @@ async function isListed(frame, fileName) {
     .catch(() => false);
 }
 
-async function uploadDocuments(frame, page, files, demo = false) {
+async function uploadDocuments(frame, page, files, demo = false, sandbox = false) {
   if (!demo && (!files || files.length === 0)) {
     console.log('No files in payload, skipping document upload');
     return { uploaded: [], failed: [] };
   }
 
-  const requested = demo ? TEST_FILES : files;
+  const requested = demo ? TEST_FILES : normaliseFiles(files);
   const skipped = [];
   const filesToUpload = [];
 
@@ -75,7 +77,7 @@ async function uploadDocuments(frame, page, files, demo = false) {
   const oversized = [];
   try {
     for (const file of filesToUpload) {
-      const tmpPath = await materialize(file, demo);
+      const tmpPath = await materialize(file, demo, sandbox);
       const { size } = fs.statSync(tmpPath);
       if (size > MAX_BYTES) {
         console.log(`${file.fileName}: SKIPPED — ${(size / 1024 / 1024).toFixed(1)}MB exceeds the 25MB limit`);
@@ -89,7 +91,9 @@ async function uploadDocuments(frame, page, files, demo = false) {
     if (!tmpPaths.length) return { uploaded: [], failed: [...skipped, ...oversized] };
 
     await frame.locator(FILE_INPUT).setInputFiles(tmpPaths);
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(1_500);
+    await dismissInterstitial(frame, page, 'right after selecting files');
+    await page.waitForTimeout(2_000);
     console.log(`Attached ${tmpPaths.length} file(s) to the dropzone`);
   } catch (err) {
     console.log(`Document upload FAILED — ${err.message.split('\n')[0]}`);
@@ -97,6 +101,8 @@ async function uploadDocuments(frame, page, files, demo = false) {
   } finally {
     for (const tmpPath of tmpPaths) { try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {} }
   }
+
+  await dismissInterstitial(frame, page, 'before verifying the file list');
 
   const uploaded = [];
   const missing = [];

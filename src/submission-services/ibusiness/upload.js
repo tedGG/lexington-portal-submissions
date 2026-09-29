@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
+const { normaliseFiles } = require('../../helpers/fileName');
 
 const DEMO_PDF = Buffer.from(
   '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
@@ -126,25 +127,25 @@ async function closeModal(page) {
   await modal.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => console.log('Upload modal is still open'));
 }
 
-async function materialize(file, demo) {
+async function materialize(file, demo, sandbox) {
   if (demo) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lex-'));
     const tmpPath = path.join(tmpDir, file.fileName);
     fs.writeFileSync(tmpPath, DEMO_PDF);
     return tmpPath;
   }
-  const tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName);
+  const tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName, sandbox);
   console.log(`${file.fileName}: downloaded from Salesforce (${file.contentVersionId})`);
   return tmpPath;
 }
 
-async function uploadFiles(page, files, demo = false, recordId = null) {
+async function uploadFiles(page, files, demo = false, recordId = null, sandbox = false) {
   if (!demo && (!files || files.length === 0)) {
     console.log('No files in payload, skipping upload');
     return { uploaded: [], failed: [] };
   }
 
-  const requested = demo ? TEST_FILES : files;
+  const requested = demo ? TEST_FILES : normaliseFiles(files);
   const skipped = requested.filter(f => !isAccepted(f.fileName));
   const filesToUpload = requested.filter(f => isAccepted(f.fileName));
 
@@ -159,7 +160,7 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
 
   const tmpPaths = [];
   try {
-    for (const file of filesToUpload) tmpPaths.push(await materialize(file, demo));
+    for (const file of filesToUpload) tmpPaths.push(await materialize(file, demo, sandbox));
 
     await page.locator(ADD_FILES_BUTTON).first().click();
     await page.locator(UPLOAD_MODAL).waitFor({ state: 'visible', timeout: 15_000 });
@@ -200,11 +201,13 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
     for (const tmpPath of tmpPaths) { try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {} }
   }
 
+  let details = { tagged: [], untagged: [] };
   try {
-    await setFileDetails(page, filesToUpload);
+    details = await setFileDetails(page, filesToUpload);
   } catch (err) {
     console.log(`Setting file types FAILED — ${err.message.split('\n')[0]}`);
     await attachFailureScreenshot(page, 'file-details', recordId);
+    details = { tagged: [], untagged: filesToUpload.filter(f => f.fileType || f.category).map(f => f.fileName) };
   }
 
   const uploaded = [];
@@ -214,8 +217,16 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
   }
   console.log(`File upload summary: ${uploaded.length}/${filesToUpload.length} listed in portal (now ${await fileCount(page) ?? '?'} total)` +
     (missing.length ? `. Missing: ${missing.join(', ')}` : ''));
+  if (details.untagged.length) {
+    console.log(`WARNING — uploaded but file type NOT set: ${details.untagged.join(', ')}`);
+  }
 
-  return { uploaded, failed: [...new Set([...skipped.map(f => f.fileName), ...missing])] };
+  return {
+    uploaded,
+    failed: [...new Set([...skipped.map(f => f.fileName), ...missing])],
+    tagged: details.tagged,
+    untagged: details.untagged,
+  };
 }
 
 module.exports = { uploadFiles, TEST_FILES, ACCEPTED_EXTENSIONS };

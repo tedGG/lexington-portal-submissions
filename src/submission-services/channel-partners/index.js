@@ -6,6 +6,7 @@ const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = requi
 const { waitForLabel } = require('../../helpers/vuetify');
 const { uploadFiles } = require('./upload');
 const { maybeSubmit } = require('../../helpers/portalSubmit');
+const { uploadScreenshot } = require('../../helpers/salesforce');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
 
@@ -26,16 +27,41 @@ async function isLoggedIn(page) {
 
 const SUBMIT_BUTTON = 'button:has-text("SEND TO ELITE")';
 
+async function captureFinalScreenshot(page, recordId, title) {
+  if (!recordId) {
+    console.log('No submissionId in payload, skipping final screenshot');
+    return null;
+  }
+  try {
+    const png = await page.screenshot({ fullPage: true });
+    const result = await uploadScreenshot(png.toString('base64'), title, recordId, sandbox);
+    console.log(`Final screenshot uploaded to Salesforce ${recordId}: ${title}`);
+    return result;
+  } catch (err) {
+    console.log(`Final screenshot upload failed (ignored): ${err.message.split('\n')[0]}`);
+    return null;
+  }
+}
+
 async function confirmChannelPartnersSubmit(page) {
   await page.waitForTimeout(6_000);
   const dialog = await page.locator('.v-overlay__content:visible').first().innerText().catch(() => '');
   const body = await page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ')).catch(() => '');
-  const hit = body.match(/(submitted|sent|thank you|success|received)[^.!]{0,120}/i);
-  return [dialog && `dialog: ${dialog.replace(/\s+/g, ' ').trim().slice(0, 160)}`, hit && `saw "${hit[0].trim()}"`]
-    .filter(Boolean).join('; ');
+  const hit = body.match(/(application (submitted|sent)|successfully (submitted|sent)|thank you)[^.!]{0,120}/i);
+  const buttonGone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
+
+  const detail = [
+    dialog && `dialog: ${dialog.replace(/\s+/g, ' ').trim().slice(0, 160)}`,
+    hit && `saw "${hit[0].trim()}"`,
+    buttonGone && 'SEND TO ELITE button gone',
+  ].filter(Boolean).join('; ') || 'no confirmation signal detected';
+
+  return { verified: Boolean(hit) || buttonGone, detail };
 }
 
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
+  const sandbox = businessData?.sandbox === true || String(businessData?.sandbox).toLowerCase() === 'true';
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be sent');
   const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
@@ -81,14 +107,19 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     }
     console.log(`Contacts filled after ${elapsed()}`);
 
-    const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId);
-
-    await page.screenshot({ path: '/tmp/channel-partners-new-application.png', fullPage: true });
+    const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId, sandbox);
 
     const submission = await maybeSubmit(
       page.locator(SUBMIT_BUTTON),
       page,
-      { lender: 'Channel Partners', buttonLabel: 'SEND TO ELITE', confirm: confirmChannelPartnersSubmit }
+      { lender: 'Channel Partners', buttonLabel: 'SEND TO ELITE', confirm: confirmChannelPartnersSubmit, sandbox }
+    );
+
+    const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
+    const screenshot = await captureFinalScreenshot(
+      page,
+      recordId,
+      `Channel Partners - Final - ${submission.submitted ? 'after send' : 'not sent'} - ${businessData?.businessName || 'Demo'}`
     );
 
     console.log(`Channel Partners submission finished in ${elapsed()}`);
@@ -98,7 +129,9 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       message: submission.submitted ? 'Application form filled and SENT TO ELITE.' : 'Application form filled — not sent.',
       files: uploads,
       submitted: submission.submitted,
+      submitVerified: submission.submitVerified,
       submitConfirmation: submission.confirmation,
+      screenshot,
     };
   } finally {
     await browser.close();

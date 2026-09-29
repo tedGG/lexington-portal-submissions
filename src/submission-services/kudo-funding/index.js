@@ -5,6 +5,7 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
 const { uploadDocuments } = require('./upload');
+const { dismissInterstitial } = require('./modal');
 const { maybeSubmit } = require('../../helpers/portalSubmit');
 
 const { KUDO_FUNDING_URL, KUDO_FUNDING_USERNAME, KUDO_FUNDING_PASSWORD } = process.env;
@@ -57,10 +58,6 @@ async function login(page) {
 }
 
 async function uploadToSalesforce(page, recordId, title) {
-  if (!isScreenshotUploadEnabled()) {
-    console.log(`Screenshots disabled — not capturing "${title}"`);
-    return null;
-  }
   if (!recordId) {
     console.log(`No opportunityId in payload, skipping screenshot upload (${title})`);
     return null;
@@ -108,16 +105,22 @@ async function advanceStep(frame, page, buttonSelector, nextStepSelector, label)
 }
 
 async function confirmKudoSubmit(page) {
-  await page.waitForTimeout(6_000);
+  await page.waitForTimeout(8_000);
   const frame = page.frames().find(f => f.url().includes('/resource/'));
-  if (!frame) return '';
+  if (!frame) return { verified: false, detail: 'application frame not found after submit' };
+
   return frame.evaluate(() => {
-    const text = (document.body.innerText || '').replace(/\s+/g, ' ');
-    const hit = text.match(/(thank you|submitted|received|success|confirmation|we'?ll be in touch)[^.!]{0,120}/i);
-    const stillOnStep5 = /STEP 5 OF 5/.test(text);
-    return [hit ? `saw "${hit[0].trim()}"` : '', stillOnStep5 ? 'still on Step 5' : 'left Step 5']
-      .filter(Boolean).join('; ');
-  }).catch(() => '');
+    const socialProof = /\b[A-Z][a-z]+ [A-Z]\.? from [A-Z][a-z ]+ (received|got approved for) \$[\d,]+ — \d+ \w+ ago/gi;
+    const text = (document.body.innerText || '').replace(socialProof, '').replace(/\s+/g, ' ');
+
+    const stillOnStep5 = /STEP 5 OF 5/i.test(text);
+    const dropzoneStillThere = /Drop your statements here/i.test(text);
+    const success = text.match(/(thank you|application (submitted|received)|successfully submitted|we'?ll be in touch|under review)[^.!]{0,120}/i);
+
+    if (success) return { verified: true, detail: `saw "${success[0].trim()}"` };
+    if (!stillOnStep5 && !dropzoneStillThere) return { verified: true, detail: 'left Step 5 (upload form gone)' };
+    return { verified: false, detail: 'still on Step 5 with the upload form present — the portal did not advance' };
+  }).catch(err => ({ verified: false, detail: `confirmation check failed: ${err.message}` }));
 }
 
 function stepCapturer(page, recordId, businessName) {
@@ -142,7 +145,9 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     throw new Error('KUDO_FUNDING_USERNAME / KUDO_FUNDING_PASSWORD are not set');
   }
 
-  const recordId = businessData?.opportunityId || businessData?.salesforceRecordId || null;
+  const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
+  const sandbox = businessData?.sandbox === true || String(businessData?.sandbox).toLowerCase() === 'true';
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be submitted');
 
   const browser = await chromium.launch({
     headless: process.env.HEADLESS !== 'false',
@@ -165,13 +170,11 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const shots = stepCapturer(page, recordId, data?.businessName);
 
     await fillStepOne(frame, page, data, contact);
-    await shots.capture('Step 1 of 5 - Contact Info');
     await advanceStep(frame, page, CONTINUE_BUTTON, STEP_TWO_READY, 'Step 1 (Contact Info)');
     await page.waitForTimeout(1_200);
     console.log('Step 1 complete — on Step 2 (Business Details).');
 
     await fillStepTwo(frame, page, data);
-    await shots.capture('Step 2 of 5 - Business Details');
     await advanceStep(frame, page, NEXT_BUTTON, STEP_THREE_READY, 'Step 2 (Business Details)');
     await page.waitForTimeout(1_800);
     console.log('Step 2 complete — on Step 3 (Owner Verification).');
@@ -182,26 +185,25 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       : [contact1Data, contact2Data].filter(hasValues);
     console.log(`Owners in payload: ${owners.length}`);
     await fillStepThree(frame, page, data, owners);
-    await shots.capture('Step 3 of 5 - Owner Verification');
     await advanceStep(frame, page, VERIFY_BUTTON, STEP_FOUR_READY, 'Step 3 (Owner Verification)');
     await page.waitForTimeout(2_000);
     console.log('Step 3 complete — on Step 4 (Review & Agree).');
-
-    await shots.capture('Step 4 of 5 - Review and Agree');
 
     await advanceStep(frame, page, CLAIM_BUTTON, STEP_FIVE_READY, 'Step 4 (Review & Agree)');
     await page.waitForTimeout(2_000);
     console.log('Step 4 complete — on Step 5 (Bank Statements).');
 
-    const uploads = await uploadDocuments(frame, page, files, businessData?.demo === true);
-    await shots.capture('Step 5 of 5 - Bank Statements');
+    await dismissInterstitial(frame, page, 'before uploading documents');
+    const uploads = await uploadDocuments(frame, page, files, businessData?.demo === true, sandbox);
+    await dismissInterstitial(frame, page, 'before submitting');
 
     const submission = await maybeSubmit(
       frame.locator(SUBMIT_BUTTON),
       page,
-      { lender: 'Kudo Funding', buttonLabel: 'Submit & Get Funded Today', confirm: confirmKudoSubmit }
+      { lender: 'Kudo Funding', buttonLabel: 'Submit & Get Funded Today', confirm: confirmKudoSubmit, sandbox }
     );
-    if (submission.submitted) await shots.capture('Step 5 of 5 - After Submit');
+
+    await shots.capture(submission.submitted ? 'Final - after submit' : 'Final - Step 5 (not submitted)');
 
     return {
       success: true,

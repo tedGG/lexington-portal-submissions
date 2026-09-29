@@ -167,17 +167,13 @@ async function saveApplication(page) {
 }
 
 async function uploadToSalesforce(page, recordId, title) {
-  if (!isScreenshotUploadEnabled()) {
-    console.log(`Screenshots disabled — not capturing "${title}"`);
-    return null;
-  }
   if (!recordId) {
     console.log('No opportunityId in payload, skipping screenshot upload');
     return null;
   }
   try {
     const png = await page.screenshot({ fullPage: true });
-    const result = await uploadScreenshot(png.toString('base64'), title, recordId);
+    const result = await uploadScreenshot(png.toString('base64'), title, recordId, sandbox);
     console.log(`Screenshot uploaded to Salesforce ${recordId}: ${title}`);
     return result;
   } catch (err) {
@@ -188,23 +184,89 @@ async function uploadToSalesforce(page, recordId, title) {
 
 const SUBMIT_BUTTON = 'button:has-text("Submit Application")';
 
-async function confirmIBusinessSubmit(page) {
-  await page.waitForTimeout(5_000);
-  const stage = await page.evaluate(() => {
-    const body = document.body.innerText;
-    const match = body.match(/Stage\s*\n?\s*([A-Za-z ]{3,40})/);
+async function handleIBusinessConfirmDialog(page) {
+  await page.waitForTimeout(2_500);
+  const modal = page.locator('section.slds-modal, div[role="dialog"]').filter({ hasText: /submit/i }).first();
+  if (!(await modal.isVisible().catch(() => false))) return;
+
+  const text = (await modal.innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 200);
+  console.log(`IBusiness: confirmation dialog appeared after Submit — "${text}"`);
+
+  const confirm = modal.locator('button').filter({ hasText: /^(submit|confirm|yes|ok|continue)$/i }).first();
+  if (await confirm.isVisible().catch(() => false)) {
+    const label = (await confirm.innerText().catch(() => '')).trim();
+    await confirm.click();
+    console.log(`IBusiness: clicked "${label}" in the confirmation dialog`);
+    await page.waitForTimeout(3_000);
+  } else {
+    console.log('IBusiness: confirmation dialog has no obvious confirm button — leaving it as-is');
+  }
+}
+
+async function readStage(page) {
+  return page.evaluate(() => {
+    const match = (document.body.innerText || '').match(/(?:^|\n)Stage(?:\s*\n)?\s*([^\n]{2,40})/);
     return match ? match[1].trim() : '';
   }).catch(() => '');
-  const gone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
-  return [stage && `stage now "${stage}"`, gone && 'Submit Application button no longer present']
-    .filter(Boolean).join('; ');
+}
+
+async function readToasts(page) {
+  return page.evaluate(() => {
+    const out = [];
+    const walk = root => {
+      for (const el of root.querySelectorAll('.toastMessage, .slds-notify__content, .forceActionsText, [role="alert"], .slds-theme_error')) {
+        const text = (el.innerText || '').replace(/\s+/g, ' ').trim();
+        if (text) out.push(text.slice(0, 200));
+      }
+      for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(document);
+    return [...new Set(out)];
+  }).catch(() => []);
+}
+
+const SUBMITTED_STAGE = /underwriting/i;
+
+function confirmIBusinessSubmit(stageBefore) {
+  return async page => {
+    const toasts = new Set();
+    let stageAfter = '';
+    let buttonGone = false;
+
+    for (let waited = 0; waited < 30; waited += 2) {
+      await page.waitForTimeout(2_000);
+      for (const toast of await readToasts(page)) toasts.add(toast);
+      stageAfter = await readStage(page);
+      buttonGone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
+      if (SUBMITTED_STAGE.test(stageAfter) || buttonGone) break;
+    }
+
+    const reachedUnderwriting = SUBMITTED_STAGE.test(stageAfter);
+    const stageChanged = Boolean(stageAfter) && stageAfter !== stageBefore;
+    const stillNotSubmitted = /not submitted/i.test(stageAfter);
+
+    const detail = [
+      `stage before "${stageBefore || 'unknown'}"`,
+      `after "${stageAfter || 'unknown'}"`,
+      reachedUnderwriting ? 'reached Underwriting' : null,
+      buttonGone ? 'Submit Application button gone' : 'Submit Application button still present',
+      toasts.size ? `portal said: ${[...toasts].join(' | ')}` : null,
+    ].filter(Boolean).join('; ');
+
+    return {
+      verified: reachedUnderwriting || buttonGone || (stageChanged && !stillNotSubmitted),
+      detail,
+    };
+  };
 }
 
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
   if (!IBUSINESS_URL) throw new Error('IBUSINESS_URL is not set');
   if (!IBUSINESS_USERNAME || !IBUSINESS_PASSWORD) throw new Error('IBUSINESS_USERNAME / IBUSINESS_PASSWORD are not set');
 
-  const recordId = businessData?.opportunityId || businessData?.salesforceRecordId || null;
+  const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
+  const sandbox = businessData?.sandbox === true || String(businessData?.sandbox).toLowerCase() === 'true';
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be submitted');
 
   const browser = await chromium.launch({
     headless: process.env.HEADLESS !== 'false',
@@ -226,15 +288,26 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     await fillApplicationForm(page, data, contact);
 
     const applicationUrl = await saveApplication(page);
-    const uploads = await uploadFiles(page, files, businessData?.demo === true, recordId);
+    const uploads = await uploadFiles(page, files, businessData?.demo === true, recordId, sandbox);
 
+    const stageBefore = await readStage(page);
     const submission = await maybeSubmit(
       page.locator(SUBMIT_BUTTON),
       page,
-      { lender: 'IBusiness', buttonLabel: 'Submit Application', confirm: confirmIBusinessSubmit }
+      {
+        lender: 'IBusiness',
+        buttonLabel: 'Submit Application',
+        confirm: confirmIBusinessSubmit(stageBefore),
+        confirmDialog: handleIBusinessConfirmDialog,
+        sandbox,
+      }
     );
 
-    const screenshot = await uploadToSalesforce(page, recordId, `IBusiness Submission - ${data.businessName || 'Demo'}`);
+    const screenshot = await uploadToSalesforce(
+      page,
+      recordId,
+      `IBusiness - Final - ${submission.submitted ? 'after submit' : 'not submitted'} - ${data.businessName || 'Demo'}`
+    );
 
     return {
       success: true,

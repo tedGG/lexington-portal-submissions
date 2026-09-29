@@ -20,6 +20,7 @@ function buildResponse({ lender, result, error, logs, startedAt, completedAt }) 
   if (result?.applicationUrl) payload.applicationUrl = result.applicationUrl;
   if (typeof result?.owners === 'number') payload.owners = result.owners;
   if (typeof result?.submitted === 'boolean') payload.submitted = result.submitted;
+  if (typeof result?.submitVerified === 'boolean') payload.submitVerified = result.submitVerified;
   if (result?.submitConfirmation) payload.submitConfirmation = result.submitConfirmation;
 
   if (result?.files) {
@@ -64,6 +65,7 @@ function serialize(payload) {
 }
 
 async function reportSubmission(recordId, details) {
+  const sandbox = details?.sandbox === true || String(details?.sandbox).toLowerCase() === 'true';
   if (!recordId) {
     console.log('No submissionId in payload, skipping Salesforce status update');
     return { updated: false, reason: 'no submissionId' };
@@ -71,7 +73,7 @@ async function reportSubmission(recordId, details) {
 
   const { status, response } = buildResponse({ ...details, completedAt: new Date() });
   try {
-    const objectName = await updateRecord(recordId, { lex_Status__c: status, lex_Api_Response__c: response });
+    const objectName = await updateRecord(recordId, { lex_Status__c: status, lex_Api_Response__c: response }, sandbox);
     console.log(`Salesforce ${objectName} ${recordId} updated: lex_Status__c=${status}`);
     return { updated: true, objectName, status };
   } catch (err) {

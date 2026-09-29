@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
+const { normaliseFiles } = require('../../helpers/fileName');
 const { dismissCookieBanner } = require('../../helpers/vuetify');
 
 const DEMO_PDF = Buffer.from(
@@ -128,14 +129,14 @@ async function uploadOne(page, file, tmpPath) {
   }
 }
 
-async function uploadFiles(page, files, demo = false, recordId = null) {
+async function uploadFiles(page, files, demo = false, recordId = null, sandbox = false) {
   if (!demo && (!files || files.length === 0)) return { uploaded: [], failed: [] };
 
   await page.locator('.v-tab', { hasText: /file upload/i }).click();
   await page.locator('.file-upload-cover__input').waitFor({ state: 'attached', timeout: 15_000 });
   await dismissCookieBanner(page);
 
-  const filesToUpload = demo ? TEST_FILES : files;
+  const filesToUpload = demo ? TEST_FILES : normaliseFiles(files);
   console.log(`Uploading ${filesToUpload.length} file(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
 
   const failed = [];
@@ -146,7 +147,7 @@ async function uploadFiles(page, files, demo = false, recordId = null) {
         tmpPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lex-')), file.fileName);
         fs.writeFileSync(tmpPath, DEMO_PDF);
       } else {
-        tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName);
+        tmpPath = await downloadContentVersion(file.contentVersionId, file.fileName, sandbox);
         console.log(`${file.fileName}: downloaded from Salesforce (${file.contentVersionId})`);
       }
       await uploadOne(page, file, tmpPath);

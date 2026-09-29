@@ -51,11 +51,11 @@ function createLoanHandler(automator, lender) {
       try {
         const result = await automator.submitLoan(businessData, contact1Data, contact2Data, files);
         job = { status: 'done', result, logs };
-        job.salesforce = await reportSubmission(recordId, { lender, result, logs, startedAt });
+        job.salesforce = await reportSubmission(recordId, { lender, result, logs, startedAt, sandbox: businessData.sandbox });
       } catch (err) {
         console.error('Loan submission failed:', err);
         job = { status: 'error', error: err.message, logs };
-        job.salesforce = await reportSubmission(recordId, { lender, error: err, logs, startedAt });
+        job.salesforce = await reportSubmission(recordId, { lender, error: err, logs, startedAt, sandbox: businessData.sandbox });
       }
       jobs.set(jobId, job);
     });
