@@ -107,11 +107,11 @@ async function setFileDetails(page, filesToUpload) {
   return { tagged, untagged };
 }
 
-async function attachFailureScreenshot(page, label, recordId) {
+async function attachFailureScreenshot(page, label, recordId, sandbox) {
   if (!recordId) return;
   try {
     const png = await page.screenshot({ fullPage: true });
-    await uploadScreenshot(png.toString('base64'), `ibusiness-upload-failed-${label}`, recordId);
+    await uploadScreenshot(png.toString('base64'), `ibusiness-upload-failed-${label}`, recordId, sandbox);
     console.log(`Failure screenshot attached to Salesforce record ${recordId}`);
   } catch (err) {
     console.log(`Could not attach failure screenshot — ${err.message}`);
@@ -194,7 +194,7 @@ async function uploadFiles(page, files, demo = false, recordId = null, sandbox =
     }
   } catch (err) {
     console.log(`Upload FAILED — ${err.message.split('\n')[0]}`);
-    await attachFailureScreenshot(page, 'batch', recordId);
+    await attachFailureScreenshot(page, 'batch', recordId, sandbox);
     await closeModal(page);
     return { uploaded: [], failed: [...skipped, ...filesToUpload].map(f => f.fileName) };
   } finally {
@@ -206,7 +206,7 @@ async function uploadFiles(page, files, demo = false, recordId = null, sandbox =
     details = await setFileDetails(page, filesToUpload);
   } catch (err) {
     console.log(`Setting file types FAILED — ${err.message.split('\n')[0]}`);
-    await attachFailureScreenshot(page, 'file-details', recordId);
+    await attachFailureScreenshot(page, 'file-details', recordId, sandbox);
     details = { tagged: [], untagged: filesToUpload.filter(f => f.fileType || f.category).map(f => f.fileName) };
   }
 

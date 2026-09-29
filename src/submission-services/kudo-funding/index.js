@@ -57,13 +57,13 @@ async function login(page) {
   console.log('Logged in — application wizard loaded (Step 1 of 5: Contact Info).');
 }
 
-async function uploadToSalesforce(page, recordId, title) {
+async function uploadToSalesforce(page, recordId, title, sandbox) {
   if (!recordId) {
-    console.log(`No opportunityId in payload, skipping screenshot upload (${title})`);
+    console.log(`No submissionId in payload, skipping screenshot upload (${title})`);
     return null;
   }
   const png = await page.screenshot({ fullPage: true });
-  const result = await uploadScreenshot(png.toString('base64'), title, recordId);
+  const result = await uploadScreenshot(png.toString('base64'), title, recordId, sandbox);
   console.log(`Screenshot uploaded to Salesforce ${recordId}: ${title}`);
   return result;
 }
@@ -123,14 +123,14 @@ async function confirmKudoSubmit(page) {
   }).catch(err => ({ verified: false, detail: `confirmation check failed: ${err.message}` }));
 }
 
-function stepCapturer(page, recordId, businessName) {
+function stepCapturer(page, recordId, businessName, sandbox) {
   const uploaded = [];
   return {
     uploaded,
     capture: async label => {
       const title = `Kudo Funding - ${label} - ${businessName || 'Demo'}`;
       try {
-        const result = await uploadToSalesforce(page, recordId, title);
+        const result = await uploadToSalesforce(page, recordId, title, sandbox);
         if (result) uploaded.push({ step: label, contentVersionId: result.id });
       } catch (err) {
         console.log(`Screenshot upload failed for "${label}": ${err.message}`);
@@ -167,7 +167,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const data = businessData?.demo ? TEST_DATA : businessData;
     const contact = businessData?.demo ? TEST_CONTACT : contact1Data;
 
-    const shots = stepCapturer(page, recordId, data?.businessName);
+    const shots = stepCapturer(page, recordId, data?.businessName, sandbox);
 
     await fillStepOne(frame, page, data, contact);
     await advanceStep(frame, page, CONTINUE_BUTTON, STEP_TWO_READY, 'Step 1 (Contact Info)');

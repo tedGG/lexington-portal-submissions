@@ -135,6 +135,7 @@ async function fillApplicationForm(page, businessData, contact1Data) {
 }
 
 async function submitLoan(businessData_, contact1Data, contact2Data, files) {
+  const sandbox = businessData_?.sandbox === true || String(businessData_?.sandbox).toLowerCase() === 'true';
   if (!IOU_URL) throw new Error('IOU_URL is not set');
 
   const browser = await chromium.launch({
@@ -203,7 +204,7 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
 
     if (businessData_?.salesforceRecordId) {
       const title = `IOU Financial Submission - ${businessData_.businessName || 'Demo'}`;
-      const result = await uploadScreenshot(screenshot.toString('base64'), title, businessData_.salesforceRecordId);
+      const result = await uploadScreenshot(screenshot.toString('base64'), title, businessData_.salesforceRecordId, sandbox);
       console.log(`Screenshot uploaded to Salesforce: ${JSON.stringify(result)}`);
     }
 
@@ -214,7 +215,7 @@ async function submitLoan(businessData_, contact1Data, contact2Data, files) {
         const png = await page.screenshot({ fullPage: true }).catch(() => null);
         if (png) {
           const title = `IOU Error Screenshot - ${new Date().toISOString()}`;
-          const result = await uploadScreenshot(png.toString('base64'), title, businessData_.salesforceRecordId);
+          const result = await uploadScreenshot(png.toString('base64'), title, businessData_.salesforceRecordId, sandbox);
           console.log(`Error screenshot uploaded: ${JSON.stringify(result)}`);
         }
       } catch (uploadErr) {

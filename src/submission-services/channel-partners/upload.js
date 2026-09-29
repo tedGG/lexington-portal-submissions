@@ -50,11 +50,11 @@ async function waitListed(page, fileName, timeout) {
   return page.waitForFunction(inFileList, listedPattern(fileName), { timeout }).then(() => true, () => false);
 }
 
-async function attachFailureScreenshot(page, fileName, recordId) {
+async function attachFailureScreenshot(page, fileName, recordId, sandbox) {
   if (!recordId) return;
   try {
     const png = await page.screenshot({ fullPage: true });
-    await uploadScreenshot(png.toString('base64'), `channel-partners-upload-failed-${baseName(fileName)}`, recordId);
+    await uploadScreenshot(png.toString('base64'), `channel-partners-upload-failed-${baseName(fileName)}`, recordId, sandbox);
     console.log(`${fileName}: failure screenshot attached to Salesforce record ${recordId}`);
   } catch (err) {
     console.log(`${fileName}: could not attach failure screenshot — ${err.message}`);
@@ -154,7 +154,7 @@ async function uploadFiles(page, files, demo = false, recordId = null, sandbox =
     } catch (err) {
       console.log(`${file.fileName}: FAILED — ${err.message.split('\n')[0]}`);
       failed.push(file.fileName);
-      await attachFailureScreenshot(page, file.fileName, recordId);
+      await attachFailureScreenshot(page, file.fileName, recordId, sandbox);
       await closeDialog(page, addFilesDialog(page));
     } finally {
       if (tmpPath) try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {}

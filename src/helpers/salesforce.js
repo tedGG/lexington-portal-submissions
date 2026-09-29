@@ -210,8 +210,13 @@ async function uploadScreenshot(base64Data, title, recordId, sandbox = false) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const result = JSON.parse(Buffer.concat(chunks).toString());
-        if (res.statusCode >= 400) reject(new Error(`SF upload failed: ${JSON.stringify(result)}`));
-        else resolve(result);
+        if (res.statusCode >= 400) {
+          const org = sandbox ? 'sandbox' : 'production';
+          const hint = /INSUFFICIENT_ACCESS|NOT_FOUND|MALFORMED_ID/.test(JSON.stringify(result))
+            ? ` — record ${recordId} may not exist in the ${org} org, check the sandbox flag on the payload`
+            : '';
+          reject(new Error(`SF upload failed (${org} org): ${JSON.stringify(result)}${hint}`));
+        } else resolve(result);
       });
     });
     req.on('error', reject);
