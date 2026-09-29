@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion, uploadScreenshot } = require('../../helpers/salesforce');
-const { normaliseFiles } = require('../../helpers/fileName');
+const { normaliseFiles, ensureExtension } = require('../../helpers/fileName');
 
 const DEMO_PDF = Buffer.from(
   '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
@@ -146,21 +146,36 @@ async function uploadFiles(page, files, demo = false, recordId = null, sandbox =
   }
 
   const requested = demo ? TEST_FILES : normaliseFiles(files);
-  const skipped = requested.filter(f => !isAccepted(f.fileName));
-  const filesToUpload = requested.filter(f => isAccepted(f.fileName));
-
-  for (const file of skipped) {
-    console.log(`${file.fileName}: SKIPPED — extension not accepted by portal (${ACCEPTED_EXTENSIONS.join(' ')})`);
-  }
-  if (!filesToUpload.length) return { uploaded: [], failed: skipped.map(f => f.fileName) };
 
   await page.locator(ADD_FILES_BUTTON).first().waitFor({ timeout: 30_000 });
   const before = await fileCount(page);
-  console.log(`Files section ready (currently ${before ?? '?'} file(s)). Uploading ${filesToUpload.length}: ${filesToUpload.map(f => f.fileName).join(', ')}`);
+  console.log(`Files section ready (currently ${before ?? '?'} file(s)). Preparing ${requested.length}: ${requested.map(f => f.fileName).join(', ')}`);
 
   const tmpPaths = [];
+  const skipped = [];
+  const filesToUpload = [];
   try {
-    for (const file of filesToUpload) tmpPaths.push(await materialize(file, demo, sandbox));
+    for (const file of requested) {
+      const downloaded = await materialize(file, demo, sandbox);
+      const resolved = ensureExtension(downloaded, file.fileName);
+      file.fileName = resolved.fileName;
+
+      if (!isAccepted(resolved.fileName)) {
+        console.log(`${resolved.fileName}: SKIPPED — extension not accepted by portal (${ACCEPTED_EXTENSIONS.join(' ')})`);
+        skipped.push(file);
+        fs.rmSync(path.dirname(resolved.filePath), { recursive: true, force: true });
+        continue;
+      }
+
+      tmpPaths.push(resolved.filePath);
+      filesToUpload.push(file);
+    }
+
+    if (!filesToUpload.length) {
+      console.log('No files left to upload after validation');
+      return { uploaded: [], failed: skipped.map(f => f.fileName) };
+    }
+    console.log(`Uploading ${filesToUpload.length}: ${filesToUpload.map(f => f.fileName).join(', ')}`);
 
     await page.locator(ADD_FILES_BUTTON).first().click();
     await page.locator(UPLOAD_MODAL).waitFor({ state: 'visible', timeout: 15_000 });

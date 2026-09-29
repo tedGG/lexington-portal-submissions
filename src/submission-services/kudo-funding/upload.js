@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { downloadContentVersion } = require('../../helpers/salesforce');
-const { normaliseFiles } = require('../../helpers/fileName');
+const { normaliseFiles, ensureExtension } = require('../../helpers/fileName');
 const { dismissInterstitial } = require('./modal');
 
 const DEMO_PDF = Buffer.from(
@@ -57,38 +57,46 @@ async function uploadDocuments(frame, page, files, demo = false, sandbox = false
   }
 
   const requested = demo ? TEST_FILES : normaliseFiles(files);
-  const skipped = [];
-  const filesToUpload = [];
-
-  for (const file of requested) {
-    if (!isAccepted(file.fileName)) {
-      console.log(`${file.fileName}: SKIPPED — Kudo accepts PDF and image files only`);
-      skipped.push(file.fileName);
-      continue;
-    }
-    filesToUpload.push(file);
-  }
-  if (!filesToUpload.length) return { uploaded: [], failed: skipped };
+  const filesToUpload = [...requested];
 
   await frame.locator(FILE_INPUT).waitFor({ state: 'attached', timeout: 30_000 });
-  console.log(`Uploading ${filesToUpload.length} document(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
+  console.log(`Preparing ${filesToUpload.length} document(s): ${filesToUpload.map(f => f.fileName).join(', ')}`);
 
   const tmpPaths = [];
+  const skipped = [];
   const oversized = [];
+  const accepted = [];
   try {
     for (const file of filesToUpload) {
-      const tmpPath = await materialize(file, demo, sandbox);
-      const { size } = fs.statSync(tmpPath);
-      if (size > MAX_BYTES) {
-        console.log(`${file.fileName}: SKIPPED — ${(size / 1024 / 1024).toFixed(1)}MB exceeds the 25MB limit`);
-        oversized.push(file.fileName);
-        fs.unlinkSync(tmpPath);
+      const downloaded = await materialize(file, demo, sandbox);
+      const resolved = ensureExtension(downloaded, file.fileName);
+      file.fileName = resolved.fileName;
+
+      if (!isAccepted(resolved.fileName)) {
+        const ext = path.extname(resolved.fileName) || 'no extension';
+        console.log(`${resolved.fileName}: SKIPPED — Kudo accepts PDF and image files only (${ext})`);
+        skipped.push(resolved.fileName);
+        fs.rmSync(path.dirname(resolved.filePath), { recursive: true, force: true });
         continue;
       }
-      tmpPaths.push(tmpPath);
+
+      const { size } = fs.statSync(resolved.filePath);
+      if (size > MAX_BYTES) {
+        console.log(`${resolved.fileName}: SKIPPED — ${(size / 1024 / 1024).toFixed(1)}MB exceeds the 25MB limit`);
+        oversized.push(resolved.fileName);
+        fs.rmSync(path.dirname(resolved.filePath), { recursive: true, force: true });
+        continue;
+      }
+
+      tmpPaths.push(resolved.filePath);
+      accepted.push(file);
     }
 
-    if (!tmpPaths.length) return { uploaded: [], failed: [...skipped, ...oversized] };
+    if (!tmpPaths.length) {
+      console.log('No documents left to upload after validation');
+      return { uploaded: [], failed: [...skipped, ...oversized] };
+    }
+    console.log(`Uploading ${tmpPaths.length} document(s): ${accepted.map(f => f.fileName).join(', ')}`);
 
     await frame.locator(FILE_INPUT).setInputFiles(tmpPaths);
     await page.waitForTimeout(1_500);
@@ -106,11 +114,10 @@ async function uploadDocuments(frame, page, files, demo = false, sandbox = false
 
   const uploaded = [];
   const missing = [];
-  for (const file of filesToUpload) {
-    if (oversized.includes(file.fileName)) continue;
+  for (const file of accepted) {
     (await isListed(frame, file.fileName) ? uploaded : missing).push(file.fileName);
   }
-  console.log(`Documents attached: ${uploaded.length}/${filesToUpload.length - oversized.length}` +
+  console.log(`Documents attached: ${uploaded.length}/${accepted.length}` +
     (missing.length ? `. Not visible in list: ${missing.join(', ')}` : ''));
 
   return { uploaded, failed: [...new Set([...skipped, ...oversized, ...missing])] };
