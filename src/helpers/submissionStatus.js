@@ -36,6 +36,14 @@ function buildResponse({ lender, result, error, logs, startedAt, completedAt }) 
     payload.screenshots = result.screenshots;
   }
 
+  if (result?.screenshot) {
+    payload.screenshot = result.screenshot.id
+      ? { contentVersionId: result.screenshot.id }
+      : result.screenshot;
+  } else if (result && 'screenshot' in result) {
+    payload.screenshot = { uploaded: false, reason: result.screenshotError || 'not uploaded' };
+  }
+
   if (!success) payload.logs = logs.slice(-LOG_TAIL_LINES);
 
   return { status: success ? 'Submitted' : 'Failed', response: serialize(payload) };

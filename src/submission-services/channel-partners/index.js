@@ -49,8 +49,9 @@ async function captureFinalScreenshot(page, recordId, title) {
     console.log(`Final screenshot uploaded to Salesforce ${recordId}: ${title}`);
     return result;
   } catch (err) {
-    console.log(`Final screenshot upload failed (ignored): ${err.message.split('\n')[0]}`);
-    return null;
+    const reason = err.message.split('\n')[0];
+    console.log(`Final screenshot upload failed (ignored): ${reason}`);
+    return { uploaded: false, reason };
   }
 }
 

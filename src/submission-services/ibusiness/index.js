@@ -177,8 +177,9 @@ async function uploadToSalesforce(page, recordId, title) {
     console.log(`Screenshot uploaded to Salesforce ${recordId}: ${title}`);
     return result;
   } catch (err) {
-    console.log(`Screenshot upload failed (ignored): ${err.message.split('\n')[0]}`);
-    return null;
+    const reason = err.message.split('\n')[0];
+    console.log(`Screenshot upload failed (ignored): ${reason}`);
+    return { uploaded: false, reason };
   }
 }
 
@@ -201,6 +202,21 @@ async function handleIBusinessConfirmDialog(page) {
   } else {
     console.log('IBusiness: confirmation dialog has no obvious confirm button — leaving it as-is');
   }
+}
+
+async function openDetailsTab(page) {
+  const tab = page.getByText('Details', { exact: true }).first();
+  if (!(await tab.count())) {
+    console.log('Details tab not found — stage will not be readable');
+    return false;
+  }
+  await tab.click().catch(() => {});
+  await page.waitForFunction(
+    () => /(?:^|\n)Stage(?:\s*\n)?\s*\S/.test(document.body.innerText || ''),
+    { timeout: 15_000 }
+  ).then(() => true, () => false);
+  await page.waitForTimeout(1_000);
+  return true;
 }
 
 async function readStage(page) {
@@ -293,7 +309,9 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const applicationUrl = await saveApplication(page);
     const uploads = await uploadFiles(page, files, businessData?.demo === true, recordId, sandbox);
 
+    await openDetailsTab(page);
     const stageBefore = await readStage(page);
+    console.log(`Stage before submit: "${stageBefore || 'unknown'}"`);
     const submission = await maybeSubmit(
       page.locator(SUBMIT_BUTTON),
       page,
@@ -320,6 +338,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       applicationUrl,
       files: uploads,
       submitted: submission.submitted,
+      submitVerified: submission.submitVerified,
       submitConfirmation: submission.confirmation,
       screenshot,
     };
