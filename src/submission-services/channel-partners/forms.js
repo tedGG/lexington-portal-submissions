@@ -57,6 +57,51 @@ const TEST_CONTACTS = [
   },
 ];
 
+const VERIFIED_ICON = '.mdi-check-circle';
+const VERIFICATION_DIALOG = '.v-overlay__content:has-text("Address Verification")';
+
+async function verifyAddress(page, sectionLabel, nth = 0) {
+  const button = page.getByRole('button', { name: /^verify$/i }).nth(nth);
+  if (!(await button.count())) {
+    console.log(`${sectionLabel}: no VERIFY button found`);
+    return false;
+  }
+  if (!(await button.isVisible().catch(() => false))) {
+    console.log(`${sectionLabel}: VERIFY button is not visible, skipping`);
+    return false;
+  }
+
+  await button.click();
+  console.log(`${sectionLabel}: clicked VERIFY`);
+
+  const dialog = page.locator(VERIFICATION_DIALOG);
+  const appeared = await dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false);
+
+  if (appeared) {
+    const useVerified = dialog.getByRole('button', { name: /use verified address/i }).first();
+    if (await useVerified.isVisible().catch(() => false)) {
+      await useVerified.click();
+      console.log(`${sectionLabel}: Address Verification dialog — chose "Use Verified Address"`);
+    } else {
+      const keep = dialog.getByRole('button', { name: /keep current address/i }).first();
+      if (await keep.isVisible().catch(() => false)) {
+        await keep.click();
+        console.log(`${sectionLabel}: no verified option offered — kept the current address`);
+      }
+    }
+    await dialog.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+  } else {
+    console.log(`${sectionLabel}: no verification dialog (address accepted as entered)`);
+  }
+
+  const verified = await page.locator(`${VERIFIED_ICON}:visible`).first()
+    .waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false);
+  console.log(verified
+    ? `${sectionLabel}: address verified`
+    : `${sectionLabel}: WARNING — no green check after verifying`);
+  return verified;
+}
+
 async function fillStreetAutocomplete(page, input, value, nth) {
   await input.click();
   await input.fill(value);
@@ -140,6 +185,8 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
     await openDropdown(page, 'State', n);
     await pickVuetifyOption(page, contactData.state || null);
     console.log(`Selected contact[${contactIndex}]: State`);
+
+    await verifyAddress(page, `contact[${contactIndex}] Address`, n);
   }
 }
 
@@ -217,8 +264,10 @@ async function fillApplicationForm(page, data) {
   await pickVuetifyOption(page, data.billingState || null);
   console.log('Selected: Billing State');
 
+  await verifyAddress(page, 'Billing Address', 0);
+
   const sameAsBilling = await inputByLabel(page, 'Same as Billing Address');
   if (sameAsBilling) { await sameAsBilling.check(); console.log('Checked: Same as Billing'); }
 }
 
-module.exports = { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS };
+module.exports = { fillApplicationForm, fillContactForm, verifyAddress, TEST_DATA, TEST_CONTACTS };

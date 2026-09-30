@@ -5,7 +5,7 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/salesforce');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT } = require('./forms');
 const { uploadFiles } = require('./upload');
-const { maybeSubmit } = require('../../helpers/portalSubmit');
+const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
 
 const { IBUSINESS_URL, IBUSINESS_USERNAME, IBUSINESS_PASSWORD } = process.env;
 
@@ -232,6 +232,9 @@ function confirmIBusinessSubmit(stageBefore) {
     const toasts = new Set();
     let stageAfter = '';
     let buttonGone = false;
+
+    console.log('IBusiness: waiting for the submit request to finish...');
+    await waitForNetworkQuiet(page, { quietMs: 4_000, timeoutMs: 120_000, label: 'IBusiness submit' });
 
     for (let waited = 0; waited < 30; waited += 2) {
       await page.waitForTimeout(2_000);

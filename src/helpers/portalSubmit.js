@@ -1,5 +1,36 @@
 const SUBMIT_ENV_VAR = 'ALLOW_PORTAL_SUBMIT';
 
+async function waitForNetworkQuiet(page, { quietMs = 4_000, timeoutMs = 180_000, label = 'network' } = {}) {
+  let inFlight = 0;
+  let lastActivity = Date.now();
+  let peak = 0;
+
+  const onRequest = () => { inFlight += 1; peak = Math.max(peak, inFlight); lastActivity = Date.now(); };
+  const onSettled = () => { inFlight = Math.max(0, inFlight - 1); lastActivity = Date.now(); };
+
+  page.on('request', onRequest);
+  page.on('requestfinished', onSettled);
+  page.on('requestfailed', onSettled);
+
+  const startedAt = Date.now();
+  try {
+    while (Date.now() - startedAt < timeoutMs) {
+      await page.waitForTimeout(500);
+      if (inFlight === 0 && Date.now() - lastActivity >= quietMs) {
+        const waited = ((Date.now() - startedAt) / 1000).toFixed(1);
+        console.log(`${label}: settled after ${waited}s (${peak} request(s) seen)`);
+        return true;
+      }
+    }
+    console.log(`${label}: still busy after ${(timeoutMs / 1000).toFixed(0)}s with ${inFlight} request(s) in flight — continuing anyway`);
+    return false;
+  } finally {
+    page.off('request', onRequest);
+    page.off('requestfinished', onSettled);
+    page.off('requestfailed', onSettled);
+  }
+}
+
 function isSubmitAllowed() {
   const value = process.env[SUBMIT_ENV_VAR];
   return typeof value === 'string' && value.trim().toLowerCase() === 'true';
@@ -44,4 +75,4 @@ async function maybeSubmit(locator, page, options) {
   return clickSubmit(locator, page, options);
 }
 
-module.exports = { maybeSubmit, isSubmitAllowed, SUBMIT_ENV_VAR };
+module.exports = { maybeSubmit, isSubmitAllowed, waitForNetworkQuiet, SUBMIT_ENV_VAR };

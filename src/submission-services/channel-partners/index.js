@@ -5,7 +5,7 @@ chromium.use(StealthPlugin());
 const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./forms');
 const { waitForLabel } = require('../../helpers/vuetify');
 const { uploadFiles } = require('./upload');
-const { maybeSubmit } = require('../../helpers/portalSubmit');
+const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
 const { uploadScreenshot } = require('../../helpers/salesforce');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
@@ -44,7 +44,10 @@ async function captureFinalScreenshot(page, recordId, title) {
 }
 
 async function confirmChannelPartnersSubmit(page) {
-  await page.waitForTimeout(6_000);
+  await page.waitForTimeout(2_000);
+  console.log('Channel Partners: waiting for the send to finish before closing the browser...');
+  await waitForNetworkQuiet(page, { quietMs: 5_000, timeoutMs: 180_000, label: 'Channel Partners send' });
+  await page.waitForTimeout(3_000);
   const dialog = await page.locator('.v-overlay__content:visible').first().innerText().catch(() => '');
   const body = await page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ')).catch(() => '');
   const hit = body.match(/(application (submitted|sent)|successfully (submitted|sent)|thank you)[^.!]{0,120}/i);

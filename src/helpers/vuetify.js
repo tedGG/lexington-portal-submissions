@@ -54,6 +54,8 @@ async function dismissCookieBanner(page) {
 }
 
 async function openDropdown(page, labelText, nth = 0) {
+  await waitForLabel(page, labelText, nth, 10_000)
+    .catch(() => console.log(`Dropdown "${labelText}" [${nth}] did not appear within 10s`));
   const input = await inputByLabel(page, labelText, nth);
   if (!input) { console.log(`Dropdown not found: ${labelText} [${nth}]`); return; }
   await input.locator('xpath=ancestor::div[contains(@class,"v-field")][1]').click();

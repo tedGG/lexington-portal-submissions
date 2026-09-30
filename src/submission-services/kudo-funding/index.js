@@ -6,7 +6,7 @@ const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/s
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
 const { uploadDocuments } = require('./upload');
 const { dismissInterstitial } = require('./modal');
-const { maybeSubmit } = require('../../helpers/portalSubmit');
+const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
 
 const { KUDO_FUNDING_URL, KUDO_FUNDING_USERNAME, KUDO_FUNDING_PASSWORD } = process.env;
 
@@ -104,8 +104,23 @@ async function advanceStep(frame, page, buttonSelector, nextStepSelector, label)
   throw new Error(`Could not advance past ${label}${reported ? ` — portal reported: ${reported}` : ' (no error shown by the portal)'}`);
 }
 
+const POST_SUBMIT_MIN_MS = 60_000;
+const POST_SUBMIT_MAX_MS = 120_000;
+
 async function confirmKudoSubmit(page) {
-  await page.waitForTimeout(8_000);
+  const startedAt = Date.now();
+  console.log('Kudo: files upload after submit — holding the browser open (minimum 60s, maximum 120s)');
+
+  await page.waitForTimeout(POST_SUBMIT_MIN_MS);
+
+  const remaining = POST_SUBMIT_MAX_MS - (Date.now() - startedAt);
+  if (remaining > 0) {
+    const settled = await waitForNetworkQuiet(page, { quietMs: 5_000, timeoutMs: remaining, label: 'Kudo post-submit' });
+    if (!settled) console.log('Kudo: still busy at the 120s cap — closing anyway, the upload may be incomplete');
+  }
+
+  console.log(`Kudo: held the browser open for ${((Date.now() - startedAt) / 1000).toFixed(0)}s after submit`);
+
   const frame = page.frames().find(f => f.url().includes('/resource/'));
   if (!frame) return { verified: false, detail: 'application frame not found after submit' };
 
