@@ -60,6 +60,28 @@ const TEST_CONTACTS = [
 const VERIFIED_ICON = '.mdi-check-circle';
 const VERIFICATION_DIALOG = '.v-overlay__content:has-text("Address Verification")';
 
+function hasBlockingScrim(page) {
+  return page.evaluate(() => [...document.querySelectorAll('.v-overlay__scrim')].some(scrim => {
+    const style = getComputedStyle(scrim);
+    return style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0.01;
+  })).catch(() => false);
+}
+
+async function waitForOverlayGone(page, context) {
+  for (let waited = 0; waited < 10; waited += 1) {
+    if (!(await hasBlockingScrim(page))) return true;
+    await page.waitForTimeout(1_000);
+  }
+
+  console.log(`${context}: overlay still blocking after 10s — pressing Escape`);
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(1_000);
+
+  const stuck = await hasBlockingScrim(page);
+  if (stuck) console.log(`${context}: WARNING — an overlay is still covering the page`);
+  return !stuck;
+}
+
 async function verifyAddress(page, sectionLabel, nth = 0) {
   const button = page.getByRole('button', { name: /^verify$/i }).nth(nth);
   if (!(await button.count())) {
@@ -75,9 +97,17 @@ async function verifyAddress(page, sectionLabel, nth = 0) {
   console.log(`${sectionLabel}: clicked VERIFY`);
 
   const dialog = page.locator(VERIFICATION_DIALOG);
-  const appeared = await dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false);
+  const errorDialog = page.locator('.v-overlay__content').filter({ hasText: /could not be found|invalid address/i });
 
-  if (appeared) {
+  let outcome = 'none';
+  for (let waited = 0; waited < 25; waited += 1) {
+    if (await dialog.isVisible().catch(() => false)) { outcome = 'verification'; break; }
+    if (await errorDialog.isVisible().catch(() => false)) { outcome = 'error'; break; }
+    await page.waitForTimeout(1_000);
+    if (waited >= 4 && !(await hasBlockingScrim(page))) break;
+  }
+
+  if (outcome === 'verification') {
     const useVerified = dialog.getByRole('button', { name: /use verified address/i }).first();
     if (await useVerified.isVisible().catch(() => false)) {
       await useVerified.click();
@@ -90,15 +120,22 @@ async function verifyAddress(page, sectionLabel, nth = 0) {
       }
     }
     await dialog.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+  } else if (outcome === 'error') {
+    const text = (await errorDialog.innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 120);
+    console.log(`${sectionLabel}: portal could not verify this address — "${text}". Keeping the address as entered.`);
+    const ok = errorDialog.getByRole('button', { name: /^ok$/i }).first();
+    if (await ok.isVisible().catch(() => false)) await ok.click();
+    await errorDialog.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
   } else {
     console.log(`${sectionLabel}: no verification dialog (address accepted as entered)`);
   }
 
   const verified = await page.locator(`${VERIFIED_ICON}:visible`).first()
-    .waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false);
-  console.log(verified
-    ? `${sectionLabel}: address verified`
-    : `${sectionLabel}: WARNING — no green check after verifying`);
+    .waitFor({ state: 'visible', timeout: outcome === 'error' ? 3_000 : 10_000 }).then(() => true, () => false);
+  if (verified) console.log(`${sectionLabel}: address verified`);
+  else if (outcome !== 'error') console.log(`${sectionLabel}: WARNING — no green check after verifying`);
+
+  await waitForOverlayGone(page, sectionLabel);
   return verified;
 }
 
@@ -267,7 +304,14 @@ async function fillApplicationForm(page, data) {
   await verifyAddress(page, 'Billing Address', 0);
 
   const sameAsBilling = await inputByLabel(page, 'Same as Billing Address');
-  if (sameAsBilling) { await sameAsBilling.check(); console.log('Checked: Same as Billing'); }
+  if (sameAsBilling) {
+    await waitForOverlayGone(page, 'Same as Billing Address');
+    await sameAsBilling.check({ timeout: 20_000 }).catch(async err => {
+      console.log(`Same as Billing checkbox blocked (${err.message.split('\n')[0]}) — retrying with a forced click`);
+      await sameAsBilling.click({ force: true });
+    });
+    console.log('Checked: Same as Billing');
+  }
 }
 
 module.exports = { fillApplicationForm, fillContactForm, verifyAddress, TEST_DATA, TEST_CONTACTS };
