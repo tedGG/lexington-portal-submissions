@@ -165,7 +165,14 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
   for (const [label, value, nth] of textFields) {
     if (!value) continue;
     const el = await inputByLabel(page, label, nth);
-    if (el) { await el.fill(String(value)); console.log(`Filled contact[${contactIndex}]: ${label}`); }
+    if (!el) {
+      console.log(`contact[${contactIndex}]: WARNING — "${label}" not found, value NOT set`);
+      continue;
+    }
+    await el.fill(String(value));
+    const written = await el.inputValue().catch(() => '');
+    if (!written) console.log(`contact[${contactIndex}]: WARNING — "${label}" is still empty after filling`);
+    else console.log(`Filled contact[${contactIndex}]: ${label}`);
   }
 
   if (contactData.ssn) {

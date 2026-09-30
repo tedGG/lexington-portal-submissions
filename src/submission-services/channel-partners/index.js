@@ -27,6 +27,17 @@ async function isLoggedIn(page) {
 
 const SUBMIT_BUTTON = 'button:has-text("SEND TO ELITE")';
 
+async function waitForBusinessTabGone(page) {
+  await page.waitForFunction(
+    () => ![...document.querySelectorAll('label')]
+      .some(l => l.offsetParent !== null && /^Federal Tax ID/.test(l.innerText)),
+    { timeout: 20_000 }
+  ).then(
+    () => console.log('Business tab unmounted — Contacts fields are now unambiguous'),
+    () => console.log('WARNING — Business tab fields still present; contact fields may be ambiguous')
+  );
+}
+
 async function captureFinalScreenshot(page, recordId, title) {
   if (!recordId) {
     console.log('No submissionId in payload, skipping final screenshot');
@@ -94,6 +105,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
     await page.locator('.v-tab', { hasText: 'CONTACTS' }).click();
     await waitForLabel(page, 'First Name');
+    await waitForBusinessTabGone(page);
     console.log('Navigated to Contacts tab');
 
     const contacts = businessData.demo
