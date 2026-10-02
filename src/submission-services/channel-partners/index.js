@@ -3,7 +3,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 chromium.use(StealthPlugin());
 
 const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./forms');
-const { waitForLabel } = require('../../helpers/vuetify');
+const { waitForLabel, dismissCookieBanner } = require('../../helpers/vuetify');
 const { uploadFiles } = require('./upload');
 const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
 const { uploadScreenshot } = require('../../helpers/salesforce');
@@ -55,23 +55,77 @@ async function captureFinalScreenshot(page, recordId, title, sandbox = false) {
   }
 }
 
-async function confirmChannelPartnersSubmit(page) {
-  await page.waitForTimeout(2_000);
-  console.log('Channel Partners: waiting for the send to finish before closing the browser...');
-  await waitForNetworkQuiet(page, { quietMs: 5_000, timeoutMs: 180_000, label: 'Channel Partners send' });
-  await page.waitForTimeout(3_000);
-  const dialog = await page.locator('.v-overlay__content:visible').first().innerText().catch(() => '');
-  const body = await page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ')).catch(() => '');
-  const hit = body.match(/(application (submitted|sent)|successfully (submitted|sent)|thank you)[^.!]{0,120}/i);
-  const buttonGone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
+async function handleChannelPartnersConfirmDialog(page) {
+  const dialog = page.locator('.v-overlay__content')
+    .filter({ hasNotText: /this website uses cookies/i })
+    .filter({ hasText: /elite|submit|send|proceed|confirm|sure/i })
+    .first();
 
-  const detail = [
-    dialog && `dialog: ${dialog.replace(/\s+/g, ' ').trim().slice(0, 160)}`,
-    hit && `saw "${hit[0].trim()}"`,
-    buttonGone && 'SEND TO ELITE button gone',
-  ].filter(Boolean).join('; ') || 'no confirmation signal detected';
+  const appeared = await dialog.waitFor({ state: 'visible', timeout: 12_000 }).then(() => true, () => false);
+  if (!appeared) {
+    console.log('Channel Partners: no confirmation dialog appeared after clicking SEND TO ELITE');
+    return;
+  }
 
-  return { verified: Boolean(hit) || buttonGone, detail };
+  const text = (await dialog.innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 200);
+  console.log(`Channel Partners: confirmation dialog — "${text}"`);
+
+  const confirm = dialog.locator('button')
+    .filter({ hasText: /^(proceed|confirm|yes|ok|send|send to elite|submit|continue)$/i })
+    .first();
+
+  if (!(await confirm.count())) {
+    const buttons = await dialog.locator('button').allInnerTexts().catch(() => []);
+    console.log(`Channel Partners: no recognised confirm button. Buttons present: ${buttons.map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ')}`);
+    return;
+  }
+
+  const label = (await confirm.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  await confirm.click();
+  console.log(`Channel Partners: clicked "${label}" to confirm the send`);
+  await dialog.waitFor({ state: 'hidden', timeout: 20_000 }).catch(() => console.log('Channel Partners: confirmation dialog still open after confirming'));
+}
+
+async function readEliteStatus(page) {
+  return page.evaluate(() => {
+    const match = (document.body.innerText || '').match(/(have not been sent to elite|sent to elite)/i);
+    return match ? match[0].trim() : '';
+  }).catch(() => '');
+}
+
+async function visibleDialogs(page) {
+  return page.evaluate(() => [...document.querySelectorAll('.v-overlay__content')]
+    .filter(el => el.offsetParent !== null)
+    .map(el => (el.innerText || '').replace(/\s+/g, ' ').trim())
+    .filter(text => text && !/this website uses cookies/i.test(text))
+    .map(text => text.slice(0, 160))).catch(() => []);
+}
+
+function confirmChannelPartnersSubmit(statusBefore) {
+  return async page => {
+    await page.waitForTimeout(2_000);
+    console.log('Channel Partners: waiting for the send to finish before closing the browser...');
+    await waitForNetworkQuiet(page, { quietMs: 5_000, timeoutMs: 180_000, label: 'Channel Partners send' });
+    await page.waitForTimeout(3_000);
+
+    const statusAfter = await readEliteStatus(page);
+    const dialogs = await visibleDialogs(page);
+    const body = await page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ')).catch(() => '');
+    const hit = body.match(/(application (submitted|sent)|successfully (submitted|sent)|thank you)[^.!]{0,120}/i);
+    const buttonGone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
+    const statusCleared = /have not been sent/i.test(statusBefore) && !/have not been sent/i.test(statusAfter);
+
+    const detail = [
+      `status before "${statusBefore || 'unknown'}"`,
+      `after "${statusAfter || 'unknown'}"`,
+      statusCleared ? 'no longer "Have not been sent to Elite"' : null,
+      hit && `saw "${hit[0].trim()}"`,
+      buttonGone ? 'SEND TO ELITE button gone' : 'SEND TO ELITE button still present',
+      dialogs.length ? `dialog: ${dialogs.join(' | ')}` : null,
+    ].filter(Boolean).join('; ');
+
+    return { verified: statusCleared || Boolean(hit) || buttonGone, detail };
+  };
 }
 
 async function submitLoan(businessData, contact1Data, contact2Data, files) {
@@ -125,10 +179,20 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
     const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId, sandbox);
 
+    await dismissCookieBanner(page);
+    const statusBefore = await readEliteStatus(page);
+    console.log(`Elite status before send: "${statusBefore || 'unknown'}"`);
+
     const submission = await maybeSubmit(
       page.locator(SUBMIT_BUTTON),
       page,
-      { lender: 'Channel Partners', buttonLabel: 'SEND TO ELITE', confirm: confirmChannelPartnersSubmit, sandbox }
+      {
+        lender: 'Channel Partners',
+        buttonLabel: 'SEND TO ELITE',
+        confirm: confirmChannelPartnersSubmit(statusBefore),
+        confirmDialog: handleChannelPartnersConfirmDialog,
+        sandbox,
+      }
     );
 
     const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;

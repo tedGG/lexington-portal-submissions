@@ -94,6 +94,7 @@ async function uploadDocuments(frame, page, files, demo = false, sandbox = false
 
     if (!tmpPaths.length) {
       console.log('No documents left to upload after validation');
+      cleanupTempFiles(tmpPaths);
       return { uploaded: [], failed: [...skipped, ...oversized] };
     }
     console.log(`Uploading ${tmpPaths.length} document(s): ${accepted.map(f => f.fileName).join(', ')}`);
@@ -105,9 +106,8 @@ async function uploadDocuments(frame, page, files, demo = false, sandbox = false
     console.log(`Attached ${tmpPaths.length} file(s) to the dropzone`);
   } catch (err) {
     console.log(`Document upload FAILED — ${err.message.split('\n')[0]}`);
+    cleanupTempFiles(tmpPaths);
     return { uploaded: [], failed: requested.map(f => f.fileName) };
-  } finally {
-    for (const tmpPath of tmpPaths) { try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch {} }
   }
 
   await dismissInterstitial(frame, page, 'before verifying the file list');
@@ -120,7 +120,18 @@ async function uploadDocuments(frame, page, files, demo = false, sandbox = false
   console.log(`Documents attached: ${uploaded.length}/${accepted.length}` +
     (missing.length ? `. Not visible in list: ${missing.join(', ')}` : ''));
 
-  return { uploaded, failed: [...new Set([...skipped, ...oversized, ...missing])] };
+  return {
+    uploaded,
+    failed: [...new Set([...skipped, ...oversized, ...missing])],
+    tmpPaths,
+  };
 }
 
-module.exports = { uploadDocuments, TEST_FILES, ACCEPTED_EXTENSIONS };
+function cleanupTempFiles(tmpPaths) {
+  for (const tmpPath of tmpPaths || []) {
+    try { fs.rmSync(path.dirname(tmpPath), { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+  if (tmpPaths?.length) console.log(`Cleaned up ${tmpPaths.length} temporary file(s)`);
+}
+
+module.exports = { uploadDocuments, cleanupTempFiles, TEST_FILES, ACCEPTED_EXTENSIONS };

@@ -4,7 +4,7 @@ chromium.use(StealthPlugin());
 
 const { uploadScreenshot, isScreenshotUploadEnabled } = require('../../helpers/salesforce');
 const { fillStepOne, fillStepTwo, fillStepThree, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
-const { uploadDocuments } = require('./upload');
+const { uploadDocuments, cleanupTempFiles } = require('./upload');
 const { dismissInterstitial } = require('./modal');
 const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
 
@@ -212,6 +212,14 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const uploads = await uploadDocuments(frame, page, files, businessData?.demo === true, sandbox);
     await dismissInterstitial(frame, page, 'before submitting');
 
+    const attachedBeforeSubmit = await frame.locator('[data-sonner-toaster], body').first()
+      .evaluate(() => {
+        const text = document.body.innerText || '';
+        const sizes = text.match(/\d+(?:\.\d+)? MB/g) || [];
+        return { fileSizeRows: sizes.length, totalShown: sizes.join(', ') };
+      }).catch(() => ({ fileSizeRows: -1, totalShown: 'unreadable' }));
+    console.log(`Files still attached immediately before submit: ${attachedBeforeSubmit.fileSizeRows} (${attachedBeforeSubmit.totalShown})`);
+
     const submission = await maybeSubmit(
       frame.locator(SUBMIT_BUTTON),
       page,
@@ -219,6 +227,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     );
 
     await shots.capture(submission.submitted ? 'Final - after submit' : 'Final - Step 5 (not submitted)');
+    cleanupTempFiles(uploads.tmpPaths);
 
     return {
       success: true,
