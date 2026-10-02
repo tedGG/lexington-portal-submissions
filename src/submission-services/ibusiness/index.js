@@ -186,22 +186,33 @@ async function uploadToSalesforce(page, recordId, title) {
 const SUBMIT_BUTTON = 'button:has-text("Submit Application")';
 
 async function handleIBusinessConfirmDialog(page) {
-  await page.waitForTimeout(2_500);
-  const modal = page.locator('section.slds-modal, div[role="dialog"]').filter({ hasText: /submit/i }).first();
-  if (!(await modal.isVisible().catch(() => false))) return;
+  const modal = page.locator('section.slds-modal, .slds-modal__container, div[role="dialog"]')
+    .filter({ hasText: /submit application|cannot be made after submitting/i })
+    .first();
+
+  const appeared = await modal.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false);
+  if (!appeared) {
+    console.log('IBusiness: no confirmation dialog appeared after clicking Submit Application');
+    return;
+  }
 
   const text = (await modal.innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 200);
-  console.log(`IBusiness: confirmation dialog appeared after Submit — "${text}"`);
+  console.log(`IBusiness: confirmation dialog — "${text}"`);
 
-  const confirm = modal.locator('button').filter({ hasText: /^(submit|confirm|yes|ok|continue)$/i }).first();
-  if (await confirm.isVisible().catch(() => false)) {
-    const label = (await confirm.innerText().catch(() => '')).trim();
-    await confirm.click();
-    console.log(`IBusiness: clicked "${label}" in the confirmation dialog`);
-    await page.waitForTimeout(3_000);
-  } else {
-    console.log('IBusiness: confirmation dialog has no obvious confirm button — leaving it as-is');
+  const brand = modal.locator('.slds-modal__footer button.slds-button_brand').first();
+  const byText = modal.locator('button').filter({ hasText: /^(proceed|submit|confirm|yes|ok|continue)$/i }).first();
+  const confirm = (await brand.count()) ? brand : byText;
+
+  if (!(await confirm.isVisible().catch(() => false))) {
+    const buttons = await modal.locator('button').allInnerTexts().catch(() => []);
+    console.log(`IBusiness: no confirm button found in the dialog. Buttons present: ${buttons.map(t => t.trim()).filter(Boolean).join(', ')}`);
+    return;
   }
+
+  const label = (await confirm.innerText().catch(() => '')).trim();
+  await confirm.click();
+  console.log(`IBusiness: clicked "${label}" to confirm the submission`);
+  await modal.waitFor({ state: 'hidden', timeout: 20_000 }).catch(() => console.log('IBusiness: confirmation dialog still open after confirming'));
 }
 
 async function openDetailsTab(page) {
