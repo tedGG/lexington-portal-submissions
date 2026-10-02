@@ -38,7 +38,7 @@ async function waitForBusinessTabGone(page) {
   );
 }
 
-async function captureFinalScreenshot(page, recordId, title) {
+async function captureFinalScreenshot(page, recordId, title, sandbox = false) {
   if (!recordId) {
     console.log('No submissionId in payload, skipping final screenshot');
     return null;
@@ -135,7 +135,8 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const screenshot = await captureFinalScreenshot(
       page,
       recordId,
-      `Channel Partners - Final - ${submission.submitted ? 'after send' : 'not sent'} - ${businessData?.businessName || 'Demo'}`
+      `Channel Partners - Final - ${submission.submitted ? 'after send' : 'not sent'} - ${businessData?.businessName || 'Demo'}`,
+      sandbox
     );
 
     console.log(`Channel Partners submission finished in ${elapsed()}`);

@@ -166,9 +166,9 @@ async function saveApplication(page) {
   return page.url();
 }
 
-async function uploadToSalesforce(page, recordId, title) {
+async function uploadToSalesforce(page, recordId, title, sandbox = false) {
   if (!recordId) {
-    console.log('No opportunityId in payload, skipping screenshot upload');
+    console.log('No submissionId in payload, skipping screenshot upload');
     return null;
   }
   try {
@@ -338,7 +338,8 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     const screenshot = await uploadToSalesforce(
       page,
       recordId,
-      `IBusiness - Final - ${submission.submitted ? 'after submit' : 'not submitted'} - ${data.businessName || 'Demo'}`
+      `IBusiness - Final - ${submission.submitted ? 'after submit' : 'not submitted'} - ${data.businessName || 'Demo'}`,
+      sandbox
     );
 
     return {
@@ -355,7 +356,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
     };
   } catch (err) {
     if (page && recordId) {
-      await uploadToSalesforce(page, recordId, `IBusiness Error Screenshot - ${new Date().toISOString()}`)
+      await uploadToSalesforce(page, recordId, `IBusiness Error Screenshot - ${new Date().toISOString()}`, sandbox)
         .catch(uploadErr => console.log(`Failed to upload error screenshot: ${uploadErr.message}`));
     }
     throw err;
