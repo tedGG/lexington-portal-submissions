@@ -57,6 +57,105 @@ const TEST_CONTACTS = [
   },
 ];
 
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const STATE_NAMES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+  'District Of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+  'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+  'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+  'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah',
+  'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
+];
+
+const STATE_ABBREVIATIONS = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
+  CT: 'Connecticut', DE: 'Delaware', DC: 'District Of Columbia', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky',
+  LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire',
+  NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota',
+  OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island',
+  SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+};
+
+function mapState(value, label = 'State') {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    const name = STATE_ABBREVIATIONS[raw.toUpperCase()];
+    if (name) return name;
+  }
+  const match = STATE_NAMES.find(n => n.toLowerCase() === raw.toLowerCase());
+  if (match) return match;
+
+  console.log(`${label}: "${raw}" is not a state this portal offers — leaving it empty`);
+  return null;
+}
+
+const USE_OF_FUNDS_OPTIONS = [
+  'Advertising', 'Business Expansion', 'Cash Flow', 'Debt',
+  'Equipment', 'General Working Capital', 'Growth Oriented', 'Inventory',
+];
+
+const USE_OF_FUNDS_DEFAULT = 'General Working Capital';
+
+const USE_OF_FUNDS_KEYWORDS = [
+  [/advertis|marketing/i, 'Advertising'],
+  [/expansion|expand/i, 'Business Expansion'],
+  [/cash ?flow/i, 'Cash Flow'],
+  [/debt|refinanc|consolidat/i, 'Debt'],
+  [/equipment|machinery|vehicle/i, 'Equipment'],
+  [/growth/i, 'Growth Oriented'],
+  [/inventory/i, 'Inventory'],
+  [/working capital|payroll|operating/i, 'General Working Capital'],
+];
+
+function mapUseOfFunds(value) {
+  const first = Array.isArray(value) ? value[0] : String(value ?? '').split(/;|,/)[0];
+  const raw = String(first ?? '').trim();
+  if (!raw) return USE_OF_FUNDS_DEFAULT;
+
+  const exact = USE_OF_FUNDS_OPTIONS.find(o => o.toLowerCase() === raw.toLowerCase());
+  if (exact) return exact;
+
+  const keyword = USE_OF_FUNDS_KEYWORDS.find(([re]) => re.test(raw));
+  if (keyword) {
+    console.log(`Use of Funds: "${raw}" -> "${keyword[1]}"`);
+    return keyword[1];
+  }
+
+  console.log(`Use of Funds: "${raw}" is not a portal option — using "${USE_OF_FUNDS_DEFAULT}"`);
+  return USE_OF_FUNDS_DEFAULT;
+}
+
+async function selectExact(page, label, value, nth = 0) {
+  if (!value) {
+    console.log(`${label}: no value to select — leaving it empty`);
+    return false;
+  }
+  await openDropdown(page, label, nth);
+  const options = page.locator('.v-overlay__content .v-list-item', { hasNotText: /no data/i });
+  await options.first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+
+  const match = options.filter({ hasText: new RegExp(`^\\s*${escapeRegExp(value)}\\s*$`) }).first();
+  if (!(await match.count())) {
+    const available = (await options.allInnerTexts()).map(s => s.trim()).filter(Boolean);
+    await page.keyboard.press('Escape').catch(() => {});
+    console.log(`${label}: "${value}" not found — leaving it empty. Options: ${available.join(' | ')}`);
+    return false;
+  }
+  await match.click();
+  console.log(`Selected: ${label} = ${value}`);
+  return true;
+}
+
 const VERIFIED_ICON = '.mdi-check-circle';
 const VERIFICATION_DIALOG = '.v-overlay__content:has-text("Address Verification")';
 
@@ -226,9 +325,7 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
     const zip = await inputByLabel(page, 'Zip Code', n);
     if (zip && contactData.zipCode) { await zip.fill(String(contactData.zipCode)); }
 
-    await openDropdown(page, 'State', n);
-    await pickVuetifyOption(page, contactData.state || null);
-    console.log(`Selected contact[${contactIndex}]: State`);
+    await selectExact(page, 'State', mapState(contactData.state, `contact[${contactIndex}] State`), n);
 
     await verifyAddress(page, `contact[${contactIndex}] Address`, n);
   }
@@ -262,13 +359,9 @@ async function fillApplicationForm(page, data) {
     if (dateEl) { await dateEl.fill(data.inBusinessSince); console.log('Filled: In Business Since'); }
   }
 
-  await openDropdown(page, 'Use of Funds');
-  await pickVuetifyOption(page, data.useOfFunds || null);
-  console.log('Selected: Use of Funds');
+  await selectExact(page, 'Use of Funds', mapUseOfFunds(data.useOfFunds));
 
-  await openDropdown(page, 'Business Type');
-  await pickVuetifyOption(page, data.businessType || null);
-  console.log('Selected: Business Type');
+  await selectExact(page, 'Business Type', data.businessType);
 
   if (data.industry) {
     const industry = await inputByLabel(page, 'Industry');
@@ -285,9 +378,9 @@ async function fillApplicationForm(page, data) {
     }
   }
 
-  await openDropdown(page, 'State Of Incorporation');
-  await pickVuetifyOption(page, data.stateOfIncorporation || null);
-  console.log('Selected: State Of Incorporation');
+  const incorporationState = mapState(data.billingState, 'State Of Incorporation');
+  console.log(`State Of Incorporation derived from billingState "${data.billingState}" -> "${incorporationState || 'none'}"`);
+  await selectExact(page, 'State Of Incorporation', incorporationState);
 
   const billingStreet = await inputByLabel(page, 'Street Address', 0);
   if (billingStreet && data.streetAddress) {
@@ -304,9 +397,7 @@ async function fillApplicationForm(page, data) {
   const billingZip = await inputByLabel(page, 'Zip Code', 0);
   if (billingZip && data.zipCode) { await billingZip.fill(String(data.zipCode)); console.log('Filled: Zip Code'); }
 
-  await openDropdown(page, 'State');
-  await pickVuetifyOption(page, data.billingState || null);
-  console.log('Selected: Billing State');
+  await selectExact(page, 'State', mapState(data.billingState, 'Billing State'), 0);
 
   await verifyAddress(page, 'Billing Address', 0);
 
@@ -321,4 +412,4 @@ async function fillApplicationForm(page, data) {
   }
 }
 
-module.exports = { fillApplicationForm, fillContactForm, verifyAddress, TEST_DATA, TEST_CONTACTS };
+module.exports = { fillApplicationForm, fillContactForm, verifyAddress, mapState, mapUseOfFunds, TEST_DATA, TEST_CONTACTS };
