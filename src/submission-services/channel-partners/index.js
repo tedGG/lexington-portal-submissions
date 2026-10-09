@@ -5,7 +5,7 @@ chromium.use(StealthPlugin());
 const { fillApplicationForm, fillContactForm, TEST_DATA, TEST_CONTACTS } = require('./forms');
 const { waitForLabel, dismissCookieBanner } = require('../../helpers/vuetify');
 const { uploadFiles } = require('./upload');
-const { maybeSubmit, waitForNetworkQuiet } = require('../../helpers/portalSubmit');
+const { maybeSubmit, waitForNetworkQuiet, isSubmitAllowed } = require('../../helpers/portalSubmit');
 const { uploadScreenshot } = require('../../helpers/salesforce');
 
 const { CHANNEL_PARTNERS_URL, CHANNEL_PARTNERS_USERNAME, CHANNEL_PARTNERS_PASSWORD } = process.env;
@@ -55,53 +55,105 @@ async function captureFinalScreenshot(page, recordId, title, sandbox = false) {
   }
 }
 
-async function handleChannelPartnersConfirmDialog(page) {
-  const dialog = page.locator('.v-overlay__content')
+const MAX_SEND_ATTEMPTS = 2;
+const PRE_SEND_MIN_MS = 45_000;
+const PRE_SEND_MAX_MS = 60_000;
+
+async function settleBeforeSend(page, willSend) {
+  if (!willSend) {
+    console.log('Channel Partners: not sending, skipping the pre-send settle wait');
+    return;
+  }
+
+  const startedAt = Date.now();
+  console.log('Channel Partners: letting uploads finish before sending (minimum 45s, maximum 60s)');
+  await page.waitForTimeout(PRE_SEND_MIN_MS);
+
+  const remaining = PRE_SEND_MAX_MS - (Date.now() - startedAt);
+  if (remaining > 0) {
+    const settled = await waitForNetworkQuiet(page, { quietMs: 5_000, timeoutMs: remaining, label: 'Channel Partners pre-send' });
+    if (!settled) console.log('Channel Partners: still busy at the 60s cap — sending anyway');
+  }
+
+  console.log(`Channel Partners: waited ${((Date.now() - startedAt) / 1000).toFixed(0)}s after uploads before sending`);
+}
+
+function anyDialog(page) {
+  return page.locator('.v-overlay__content, .v-dialog, [role="dialog"]')
     .filter({ hasNotText: /this website uses cookies/i })
-    .filter({ hasText: /elite|submit|send|proceed|confirm|sure/i })
+    .first();
+}
+
+async function dismissDialog(page, dialog) {
+  const ok = dialog.locator('button')
+    .filter({ hasText: /^(ok|close|dismiss|got it)$/i })
     .first();
 
-  const appeared = await dialog.waitFor({ state: 'visible', timeout: 12_000 }).then(() => true, () => false);
-  if (!appeared) {
-    console.log('Channel Partners: no confirmation dialog appeared after clicking SEND TO ELITE');
-    return;
+  if (await ok.count()) {
+    const label = (await ok.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    await ok.click().catch(() => {});
+    console.log(`Channel Partners: dismissed the dialog with "${label}"`);
+  } else {
+    await page.keyboard.press('Escape').catch(() => {});
+    console.log('Channel Partners: dismissed the dialog with Escape');
   }
+  await dialog.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => console.log('Channel Partners: dialog still on screen after dismissing'));
+  await page.waitForTimeout(1_000);
+}
 
-  const text = (await dialog.innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 200);
-  console.log(`Channel Partners: confirmation dialog — "${text}"`);
+async function handleChannelPartnersConfirmDialog(page) {
+  for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
+    const dialog = anyDialog(page);
+    const appeared = await dialog.waitFor({ state: 'visible', timeout: 12_000 }).then(() => true, () => false);
 
-  const confirm = dialog.locator('button')
-    .filter({ hasText: /^(proceed|confirm|yes|ok|send|send to elite|submit|continue)$/i })
-    .first();
+    if (!appeared) {
+      console.log(`Channel Partners: no dialog after send attempt ${attempt}`);
+      return;
+    }
 
-  if (!(await confirm.count())) {
-    const buttons = await dialog.locator('button').allInnerTexts().catch(() => []);
-    console.log(`Channel Partners: no recognised confirm button. Buttons present: ${buttons.map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ')}`);
-    return;
+    const details = await visibleDialogs(page);
+    console.log(`Channel Partners: dialog after send attempt ${attempt} — ${details.join(' | ')}`);
+
+    const isError = /error|failed|unable|invalid/i.test(details.join(' '));
+    const confirm = dialog.locator('button')
+      .filter({ hasText: /^(proceed|confirm|yes|send|send to elite|submit|continue)$/i })
+      .first();
+
+    if (!isError && (await confirm.count())) {
+      const label = (await confirm.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+      await confirm.click();
+      console.log(`Channel Partners: clicked "${label}" to confirm the send`);
+      await dialog.waitFor({ state: 'hidden', timeout: 20_000 }).catch(() => {});
+      return;
+    }
+
+    await dismissDialog(page, dialog);
+
+    if (attempt >= MAX_SEND_ATTEMPTS) {
+      console.log(`Channel Partners: send still failing after ${attempt} attempt(s) — not retrying again`);
+      return;
+    }
+
+    const status = await readEliteStatus(page);
+    if (!/have not been sent/i.test(status)) {
+      console.log(`Channel Partners: status is now "${status}" — the application went through, NOT retrying`);
+      return;
+    }
+
+    const button = page.locator(SUBMIT_BUTTON).first();
+    if (await button.isDisabled().catch(() => true)) {
+      console.log('Channel Partners: SEND TO ELITE is disabled after the error — not retrying');
+      return;
+    }
+
+    console.log(`Channel Partners: still "${status}" — retrying SEND TO ELITE (attempt ${attempt + 1} of ${MAX_SEND_ATTEMPTS})`);
+    await button.scrollIntoViewIfNeeded().catch(() => {});
+    await button.click();
+    await page.waitForTimeout(2_000);
   }
-
-  const label = (await confirm.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
-  await confirm.click();
-  console.log(`Channel Partners: clicked "${label}" to confirm the send`);
-  await dialog.waitFor({ state: 'hidden', timeout: 20_000 }).catch(() => console.log('Channel Partners: confirmation dialog still open after confirming'));
 }
 
-async function readEliteStatus(page) {
-  return page.evaluate(() => {
-    const match = (document.body.innerText || '').match(/(have not been sent to elite|sent to elite)/i);
-    return match ? match[0].trim() : '';
-  }).catch(() => '');
-}
-
-async function visibleDialogs(page) {
-  return page.evaluate(() => [...document.querySelectorAll('.v-overlay__content')]
-    .filter(el => el.offsetParent !== null)
-    .map(el => (el.innerText || '').replace(/\s+/g, ' ').trim())
-    .filter(text => text && !/this website uses cookies/i.test(text))
-    .map(text => text.slice(0, 160))).catch(() => []);
-}
-
-function confirmChannelPartnersSubmit(statusBefore) {
+function confirmChannelPartnersSubmit(statusBefore, watcher) {
   return async page => {
     await page.waitForTimeout(2_000);
     console.log('Channel Partners: waiting for the send to finish before closing the browser...');
@@ -115,14 +167,19 @@ function confirmChannelPartnersSubmit(statusBefore) {
     const buttonGone = (await page.locator(SUBMIT_BUTTON).count()) === 0;
     const statusCleared = /have not been sent/i.test(statusBefore) && !/have not been sent/i.test(statusAfter);
 
-    const detail = [
+    const detailParts = [
       `status before "${statusBefore || 'unknown'}"`,
       `after "${statusAfter || 'unknown'}"`,
       statusCleared ? 'no longer "Have not been sent to Elite"' : null,
       hit && `saw "${hit[0].trim()}"`,
       buttonGone ? 'SEND TO ELITE button gone' : 'SEND TO ELITE button still present',
       dialogs.length ? `dialog: ${dialogs.join(' | ')}` : null,
-    ].filter(Boolean).join('; ');
+      null,
+    ].filter(Boolean);
+
+    const serverErrors = watcher ? watcher.report() : [];
+    if (serverErrors.length) detailParts.push(`server: ${serverErrors.join(' | ')}`);
+    const detail = detailParts.join('; ');
 
     return { verified: statusCleared || Boolean(hit) || buttonGone, detail };
   };
@@ -179,9 +236,12 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
 
     const uploads = await uploadFiles(page, files, businessData.demo === true, businessData.salesforceRecordId, sandbox);
 
+    await settleBeforeSend(page, !sandbox && isSubmitAllowed());
+
     await dismissCookieBanner(page);
     const statusBefore = await readEliteStatus(page);
     console.log(`Elite status before send: "${statusBefore || 'unknown'}"`);
+    const sendWatcher = watchSendErrors(page);
 
     const submission = await maybeSubmit(
       page.locator(SUBMIT_BUTTON),
@@ -189,7 +249,7 @@ async function submitLoan(businessData, contact1Data, contact2Data, files) {
       {
         lender: 'Channel Partners',
         buttonLabel: 'SEND TO ELITE',
-        confirm: confirmChannelPartnersSubmit(statusBefore),
+        confirm: confirmChannelPartnersSubmit(statusBefore, sendWatcher),
         confirmDialog: handleChannelPartnersConfirmDialog,
         sandbox,
       }
