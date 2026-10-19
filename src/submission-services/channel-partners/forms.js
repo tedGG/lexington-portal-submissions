@@ -238,11 +238,58 @@ async function verifyAddress(page, sectionLabel, nth = 0) {
   return verified;
 }
 
-async function fillStreetAutocomplete(page, input, value, nth) {
+function normaliseAddressText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/\b(street|st)\b/g, 'st')
+    .replace(/\b(avenue|ave)\b/g, 'ave')
+    .replace(/\b(road|rd)\b/g, 'rd')
+    .replace(/\b(drive|dr)\b/g, 'dr')
+    .replace(/\b(boulevard|blvd)\b/g, 'blvd')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function suggestionMatches(suggestion, street, city, state) {
+  const hay = normaliseAddressText(suggestion);
+  const tokens = normaliseAddressText(street).split(' ').filter(Boolean);
+  if (!tokens.length) return false;
+
+  if (!tokens.every(t => hay.includes(t))) return false;
+
+  if (city) return hay.includes(normaliseAddressText(city));
+  if (state) return new RegExp(`\\b${normaliseAddressText(state)}\\b`).test(hay);
+  return false;
+}
+
+async function fillStreetAutocomplete(page, input, value, nth, context = {}) {
   await input.click();
+  await input.fill('');
   await input.fill(value);
-  await pickVuetifyOption(page, null);
-  await page.keyboard.press('Escape');
+
+  const options = page.locator('.v-overlay__content:visible .v-list-item', { hasNotText: /no data/i })
+    .filter({ hasText: /,/ });
+  const appeared = await options.first().waitFor({ state: 'visible', timeout: 6_000 }).then(() => true, () => false);
+
+  if (!appeared) {
+    console.log(`Street Address: no suggestions for "${value}" — keeping it as typed`);
+    await page.keyboard.press('Escape').catch(() => {});
+    return;
+  }
+
+  const texts = (await options.allInnerTexts()).map(t => t.replace(/\s+/g, ' ').trim());
+  const index = texts.findIndex(t => suggestionMatches(t, value, context.city, context.state));
+
+  if (index === -1) {
+    console.log(`Street Address: no suggestion matches "${value}" in ${context.city || context.state || 'the given location'} — keeping it as typed, nothing selected. Offered: ${texts.slice(0, 3).join(' | ')}`);
+    await page.keyboard.press('Escape').catch(() => {});
+    return;
+  }
+
+  await options.nth(index).click();
+  console.log(`Street Address: selected "${texts[index]}"${index === 0 ? '' : ` (suggestion ${index + 1})`}`);
+
   const city = await inputByLabel(page, 'City', nth);
   if (city) await waitForValue(page, city);
 }
@@ -312,7 +359,7 @@ async function fillContactForm(page, contactData, contactIndex = 0) {
 
     const streetEl = await inputByLabel(page, 'Street Address', n);
     if (streetEl) {
-      await fillStreetAutocomplete(page, streetEl, contactData.streetAddress, n);
+      await fillStreetAutocomplete(page, streetEl, contactData.streetAddress, n, { city: contactData.city, state: mapState(contactData.state) });
       console.log(`Filled contact[${contactIndex}]: Street Address`);
     }
 
@@ -384,7 +431,7 @@ async function fillApplicationForm(page, data) {
 
   const billingStreet = await inputByLabel(page, 'Street Address', 0);
   if (billingStreet && data.streetAddress) {
-    await fillStreetAutocomplete(page, billingStreet, data.streetAddress, 0);
+    await fillStreetAutocomplete(page, billingStreet, data.streetAddress, 0, { city: data.city, state: mapState(data.billingState) });
     console.log('Filled: Billing Street Address');
   }
 
