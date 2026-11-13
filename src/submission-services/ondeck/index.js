@@ -175,6 +175,13 @@ async function dumpFields(page) {
   return page.evaluate(() => {
     const clean = text => (text || '').replace(/\s+/g, ' ').trim();
     const visible = el => el.offsetParent !== null;
+    const skippedAttributes = new Set(['value', 'style']);
+
+    const attributesOf = el => Object.fromEntries(
+      [...el.attributes]
+        .filter(attribute => !skippedAttributes.has(attribute.name))
+        .map(attribute => [attribute.name, attribute.value])
+    );
 
     const labelFor = el => {
       const direct = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
@@ -182,42 +189,48 @@ async function dumpFields(page) {
       return label ? clean(label.innerText) : null;
     };
 
-    const fields = [...document.querySelectorAll('input, select, textarea')]
-      .filter(el => el.type !== 'hidden')
-      .map(el => ({
-        tag: el.tagName.toLowerCase(),
-        type: el.getAttribute('type'),
-        id: el.id || null,
-        name: el.getAttribute('name'),
-        ngModel: el.getAttribute('ng-model'),
+    const fields = [];
+    let section = null;
+    for (const el of document.querySelectorAll('h1, h2, h3, h4, h5, legend, input, select, textarea, .ui-select-container')) {
+      if (/^(H[1-5]|LEGEND)$/.test(el.tagName)) {
+        if (visible(el) && clean(el.innerText)) section = clean(el.innerText);
+        continue;
+      }
+      if (el.type === 'hidden') continue;
+      fields.push({
+        index: fields.length,
+        section,
         label: labelFor(el),
-        placeholder: el.getAttribute('placeholder'),
-        mask: el.getAttribute('ui-mask') || el.getAttribute('mask'),
-        required: el.required || el.getAttribute('aria-required') === 'true' || el.hasAttribute('ng-required'),
-        disabled: el.disabled,
+        tag: el.tagName.toLowerCase(),
         visible: visible(el),
+        disabled: el.disabled === true,
+        required: el.required === true || el.getAttribute('aria-required') === 'true' || el.hasAttribute('ng-required'),
+        attributes: attributesOf(el),
         options: el.tagName === 'SELECT'
           ? [...el.options].map(option => ({ text: clean(option.text), value: option.value, selected: option.selected }))
           : undefined,
-      }));
+      });
+    }
 
-    const buttons = [...document.querySelectorAll('button, input[type="submit"], a.btn')]
+    const buttons = [...document.querySelectorAll('button, input[type="submit"], input[type="button"], a.btn, [ng-click]')]
       .filter(visible)
       .map(el => ({
         tag: el.tagName.toLowerCase(),
-        type: el.getAttribute('type'),
         text: clean(el.innerText || el.value),
-        ngClick: el.getAttribute('ng-click'),
-        uiSref: el.getAttribute('ui-sref'),
         disabled: el.disabled === true,
+        attributes: attributesOf(el),
       }));
 
-    const forms = [...document.querySelectorAll('form')].map(form => ({
-      name: form.getAttribute('name'),
-      ngSubmit: form.getAttribute('ng-submit'),
-    }));
+    const forms = [...document.querySelectorAll('form')].map(attributesOf);
 
-    return { fields, buttons, forms };
+    const body = document.body.cloneNode(true);
+    for (const el of body.querySelectorAll('script, style, svg, noscript, link, iframe')) el.remove();
+    const html = body.innerHTML
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 600_000);
+
+    return { fields, buttons, forms, html };
   });
 }
 

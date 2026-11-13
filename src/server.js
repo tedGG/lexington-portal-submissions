@@ -90,8 +90,9 @@ app.post('/inspect/ondeck', requireApiKey, (_req, res) => {
   res.status(202).json({ jobId });
 });
 
-app.get('/inspect/ondeck/screenshot', requireApiKey, async (_req, res) => {
+app.get('/inspect/ondeck/screenshot', requireApiKey, async (req, res) => {
   try {
+    if (req.query.fields === 'true') return res.json(await ondeck.inspect());
     const { png, outcome } = await ondeck.screenshot();
     res.set('Content-Type', 'image/png');
     res.set('X-OnDeck-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 300));
