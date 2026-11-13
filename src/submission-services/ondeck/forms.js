@@ -16,13 +16,11 @@ const TEST_DATA = {
   billingState: 'CA',
   grossAnnualSales: '500000',
   averageBankBalance: '25000',
-  monthlyCreditCardVolume: '8000',
   separateBusinessBankAccount: true,
   acceptsCreditCards: true,
   hasMerchantCashAdvance: false,
   hasAdditionalManagingPartners: false,
   loanAmount: '150000',
-  loanTerm: '12 months',
   useOfFunds: 'Working Capital',
   loanDescription: 'Test application — do not process.',
 };
@@ -105,8 +103,6 @@ const LOAN_PURPOSE_KEYWORDS = [
   [/working capital|payroll|cash flow|operating/i, 'Working Capital'],
 ];
 
-const LOAN_TERMS = [6, 9, 12, 15, 18];
-
 function isBlank(value) {
   return value === null || value === undefined || String(value).trim() === '';
 }
@@ -170,11 +166,6 @@ function mapLoanPurpose(value) {
   if (exact) return exact;
   const keyword = LOAN_PURPOSE_KEYWORDS.find(([pattern]) => pattern.test(first));
   return keyword ? keyword[1] : 'Other';
-}
-
-function mapLoanTerm(value) {
-  const months = Number(digitsOf(value));
-  return LOAN_TERMS.includes(months) ? `${months} months` : null;
 }
 
 function byId(page, id) {
@@ -276,15 +267,12 @@ async function fillBusiness(page, report, data) {
   await page.waitForTimeout(800);
   await fillText(page, report, 'business.address.city', 'Business City', data.city);
   await chooseOption(page, report, 'address.state', 'Business State', mapState(data.billingState || data.state));
-  await fillText(page, report, 'business.landLordName', 'Landlord Name', data.landlordName);
-  await fillDigits(page, report, 'business.landLordPhone', 'Landlord Phone', formatPhone(data.landlordPhone));
   console.log('Filled: Business Information');
 }
 
 async function fillFinancial(page, report, data) {
   await fillDigits(page, report, 'selfReported.revenue', 'Annual Business Revenue', wholeDollars(data.grossAnnualSales ?? data.annualRevenue));
   await fillDigits(page, report, 'selfReported.averageBalance', 'Average Bank Balance', wholeDollars(data.averageBankBalance));
-  await fillDigits(page, report, 'selfReported.averageCCvolume', 'Monthly Credit Card Vol.', wholeDollars(data.monthlyCreditCardVolume));
   await chooseYesNo(page, report, 'selfReported.separateBusinessBankAccount', 'Separate business bank account?', data.separateBusinessBankAccount);
   await chooseYesNo(page, report, 'selfReported.creditCardMoreThan3months', 'Accepted credit cards for 3+ months?', data.acceptsCreditCards);
   await chooseYesNo(page, report, 'showBalance', 'Has a merchant cash advance?', data.hasMerchantCashAdvance);
@@ -341,7 +329,6 @@ async function fillOwners(page, report, data, owners) {
 
 async function fillLoan(page, report, data) {
   await fillDigits(page, report, 'selfReported.desiredLoanAmount', 'Desired Loan Amount', wholeDollars(data.loanAmount));
-  await chooseOption(page, report, 'selfReported.desiredLoanTerm', 'Desired Loan Term', mapLoanTerm(data.loanTerm));
   await chooseOption(page, report, 'business.loanPurpose', 'Purpose of Loan', mapLoanPurpose(data.useOfFunds || data.loanPurpose));
   await fillText(page, report, 'additionalInfo.partnerDealNotes', 'Partner Deal Notes', data.loanDescription || data.partnerDealNotes);
   console.log('Filled: Loan Requested');
