@@ -6,6 +6,7 @@ const channelPartners = require('./submission-services/channel-partners');
 const iou = require('./submission-services/iou');
 const ibusiness = require('./submission-services/ibusiness');
 const kudoFunding = require('./submission-services/kudo-funding');
+const ondeck = require('./submission-services/ondeck');
 const { submitTestForm } = require('./test-automator');
 const { reportSubmission } = require('./helpers/submissionStatus');
 
@@ -70,6 +71,36 @@ app.post('/submit-loan/channel-partners', requireApiKey, createLoanHandler(chann
 app.post('/submit-loan/iou', requireApiKey, createLoanHandler(iou, 'IOU Financial'));
 app.post('/submit-loan/ibusiness', requireApiKey, createLoanHandler(ibusiness, 'IBusiness'));
 app.post('/submit-loan/kudo-funding', requireApiKey, createLoanHandler(kudoFunding, 'Kudo Funding'));
+app.post('/submit-loan/ondeck', requireApiKey, createLoanHandler(ondeck, 'OnDeck'));
+
+app.post('/inspect/ondeck', requireApiKey, (_req, res) => {
+  const jobId = randomUUID();
+  const logs = [];
+  jobs.set(jobId, { status: 'pending', logs });
+
+  jobLogStorage.run(logs, () => {
+    ondeck.inspect()
+      .then(result => jobs.set(jobId, { status: 'done', result, logs }))
+      .catch(err => {
+        console.error('ondeck inspect failed:', err);
+        jobs.set(jobId, { status: 'error', error: err.message, logs });
+      });
+  });
+
+  res.status(202).json({ jobId });
+});
+
+app.get('/inspect/ondeck/screenshot', requireApiKey, async (_req, res) => {
+  try {
+    const { png, outcome } = await ondeck.screenshot();
+    res.set('Content-Type', 'image/png');
+    res.set('X-OnDeck-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 300));
+    res.send(png);
+  } catch (err) {
+    console.error('ondeck screenshot failed:', err);
+    res.status(500).json({ error: 'Screenshot failed', details: err.message });
+  }
+});
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
   const jobId = randomUUID();
