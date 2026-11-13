@@ -1,0 +1,1654 @@
+{
+    "success": true,
+    "url": "https://partners.ondeck.com/v2/resources/#/application/",
+    "title": "Application | Partner Portal",
+    "labels": [
+        "Exact Legal Company Name",
+        "Doing Business As (DBA)",
+        "Business Inception Date",
+        "Tax ID",
+        "Company Type",
+        "Nature of Business",
+        "Business Phone",
+        "Business Address (No P.O. box)",
+        "Zip Code",
+        "City",
+        "State",
+        "Landlord Name",
+        "Landlord Phone",
+        "Annual Business Revenue",
+        "Average Bank Balance",
+        "Monthly Credit Card Vol.",
+        "Does the merchant have a separate business bank account? *",
+        "Has the merchant accepted credit cards for 3 months or more? *",
+        "Does the merchant have a merchant cash advance (MCA)? *",
+        "First Name",
+        "Last Name",
+        "Date of Birth",
+        "Email",
+        "Home Phone",
+        "Cell Phone",
+        "Home Address (No P.O. box)",
+        "Ownership %",
+        "Does your business have an individual with significant responsibility for managing the legal entity other than you? *",
+        "Desired Loan Amount",
+        "Desired Loan Term",
+        "Purpose of Loan",
+        "Partner Deal Notes"
+    ],
+    "blockedRequests": [],
+    "fields": [
+        {
+            "index": 0,
+            "section": "Partner Portal",
+            "label": "as Filter by user",
+            "tag": "select",
+            "visible": false,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid ng-hide ng-valid-required",
+                "ng-options": "user.id as (user.firstName + ' ' + user.lastName) for user in managedUserChoices",
+                "ng-required": "managedUserChoices.length > 0",
+                "ng-show": "showSelection",
+                "ng-model": "ngModel"
+            },
+            "options": [
+                {
+                    "text": "Filter by user",
+                    "value": "",
+                    "selected": true
+                }
+            ]
+        },
+        {
+            "index": 1,
+            "section": "Business Information",
+            "label": "Exact Legal Company Name",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.name",
+                "name": "business.name",
+                "ng-model": "business.name",
+                "ng-disabled": "isFieldDisabled('business.name')",
+                "required": ""
+            }
+        },
+        {
+            "index": 2,
+            "section": "Business Information",
+            "label": "Doing Business As (DBA)",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.doingBusinessAs",
+                "ng-model": "business.doingBusinessAs",
+                "ng-disabled": "isFieldDisabled('business.doingBusinessAs')",
+                "name": "business.doingBusinessAs",
+                "required": ""
+            }
+        },
+        {
+            "index": 3,
+            "section": "Business Information",
+            "label": "Business Inception Date",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required ng-valid-date",
+                "placeholder": "MM-DD-YYYY",
+                "is-open": "datePickerOpen",
+                "datepicker-popup": "MM-dd-yyyy",
+                "datepicker-options": "{showWeeks: false}",
+                "show-button-bar": "false",
+                "ng-model": "dateModel",
+                "ng-required": "true",
+                "close-text": "Close",
+                "ng-disabled": "ngDisabled",
+                "id": "business.businessInceptionDate",
+                "name": "business.businessInceptionDate",
+                "required": "required"
+            }
+        },
+        {
+            "index": 4,
+            "section": "Business Information",
+            "label": "Tax ID",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required",
+                "id": "taxID",
+                "name": "business.genericID",
+                "ui-mask": "99-9999999",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-blur": "vm.checkABNACN(vm.typeName, vm.modelName)",
+                "required": "",
+                "placeholder": "__-_______"
+            }
+        },
+        {
+            "index": 5,
+            "section": "Business Information",
+            "label": "Company Type",
+            "tag": "select",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "legalEntity",
+                "name": "legalEntity",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-options": "legalEntity.code as legalEntity.name for legalEntity in vm.legalEntities",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-change": "vm.onChange()",
+                "required": ""
+            },
+            "options": [
+                {
+                    "text": "Choose...",
+                    "value": "",
+                    "selected": true
+                },
+                {
+                    "text": "Sole Proprietor",
+                    "value": "0",
+                    "selected": false
+                },
+                {
+                    "text": "Limited Liability Company (LLC)",
+                    "value": "1",
+                    "selected": false
+                },
+                {
+                    "text": "Corporation",
+                    "value": "2",
+                    "selected": false
+                },
+                {
+                    "text": "General Partnership",
+                    "value": "3",
+                    "selected": false
+                },
+                {
+                    "text": "Limited Partnership (LP)",
+                    "value": "4",
+                    "selected": false
+                },
+                {
+                    "text": "Limited Liability Partnership (LLP)",
+                    "value": "5",
+                    "selected": false
+                }
+            ]
+        },
+        {
+            "index": 6,
+            "section": "Business Information",
+            "label": "Nature of Business",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.natureOfBusiness",
+                "name": "business.natureOfBusiness",
+                "ng-model": "business.natureOfBusiness",
+                "ng-disabled": "isFieldDisabled('business.natureOfBusiness')",
+                "required": ""
+            }
+        },
+        {
+            "index": 7,
+            "section": "Business Information",
+            "label": "Business Phone",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "business.phone",
+                "ui-mask": "(999) 999-9999",
+                "ng-disabled": "isFieldDisabled('business.phone')",
+                "id": "business.phone",
+                "name": "business.phone",
+                "required": "",
+                "placeholder": "(___) ___-____"
+            }
+        },
+        {
+            "index": 8,
+            "section": "Business Information",
+            "label": "Business Address (No P.O. box)",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.address.addressLine1",
+                "name": "business.address.addressLine1",
+                "ng-model": "business.address.addressLine1",
+                "ng-disabled": "isFieldDisabled('business.address.addressLine1')",
+                "required": ""
+            }
+        },
+        {
+            "index": 9,
+            "section": "Business Information",
+            "label": "Zip Code",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "address.zipCode",
+                "name": "address.code",
+                "ui-mask": "99999",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-required": "required",
+                "placeholder": "_____",
+                "required": "required"
+            }
+        },
+        {
+            "index": 10,
+            "section": "Business Information",
+            "label": "City",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.address.city",
+                "name": "business.address.city",
+                "ng-model": "business.address.city",
+                "ng-disabled": "isFieldDisabled('business.address.city')",
+                "required": ""
+            }
+        },
+        {
+            "index": 11,
+            "section": "Business Information",
+            "label": "State",
+            "tag": "select",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "address.state",
+                "name": "address.stateprovince",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-options": "state.id as state.name for state in vm.states",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-required": "vm.isRequired",
+                "required": "required"
+            },
+            "options": [
+                {
+                    "text": "Choose...",
+                    "value": "",
+                    "selected": true
+                },
+                {
+                    "text": "Alabama",
+                    "value": "0",
+                    "selected": false
+                },
+                {
+                    "text": "Alaska",
+                    "value": "1",
+                    "selected": false
+                },
+                {
+                    "text": "American Samoa",
+                    "value": "2",
+                    "selected": false
+                },
+                {
+                    "text": "Arizona",
+                    "value": "3",
+                    "selected": false
+                },
+                {
+                    "text": "Arkansas",
+                    "value": "4",
+                    "selected": false
+                },
+                {
+                    "text": "California",
+                    "value": "5",
+                    "selected": false
+                },
+                {
+                    "text": "Colorado",
+                    "value": "6",
+                    "selected": false
+                },
+                {
+                    "text": "Connecticut",
+                    "value": "7",
+                    "selected": false
+                },
+                {
+                    "text": "Delaware",
+                    "value": "8",
+                    "selected": false
+                },
+                {
+                    "text": "District of Columbia",
+                    "value": "9",
+                    "selected": false
+                },
+                {
+                    "text": "Florida",
+                    "value": "10",
+                    "selected": false
+                },
+                {
+                    "text": "Georgia",
+                    "value": "11",
+                    "selected": false
+                },
+                {
+                    "text": "Guam",
+                    "value": "12",
+                    "selected": false
+                },
+                {
+                    "text": "Hawaii",
+                    "value": "13",
+                    "selected": false
+                },
+                {
+                    "text": "Idaho",
+                    "value": "14",
+                    "selected": false
+                },
+                {
+                    "text": "Illinois",
+                    "value": "15",
+                    "selected": false
+                },
+                {
+                    "text": "Indiana",
+                    "value": "16",
+                    "selected": false
+                },
+                {
+                    "text": "Iowa",
+                    "value": "17",
+                    "selected": false
+                },
+                {
+                    "text": "Kansas",
+                    "value": "18",
+                    "selected": false
+                },
+                {
+                    "text": "Kentucky",
+                    "value": "19",
+                    "selected": false
+                },
+                {
+                    "text": "Louisiana",
+                    "value": "20",
+                    "selected": false
+                },
+                {
+                    "text": "Maine",
+                    "value": "21",
+                    "selected": false
+                },
+                {
+                    "text": "Maryland",
+                    "value": "22",
+                    "selected": false
+                },
+                {
+                    "text": "Massachusetts",
+                    "value": "23",
+                    "selected": false
+                },
+                {
+                    "text": "Michigan",
+                    "value": "24",
+                    "selected": false
+                },
+                {
+                    "text": "Minnesota",
+                    "value": "25",
+                    "selected": false
+                },
+                {
+                    "text": "Mississippi",
+                    "value": "26",
+                    "selected": false
+                },
+                {
+                    "text": "Missouri",
+                    "value": "27",
+                    "selected": false
+                },
+                {
+                    "text": "Montana",
+                    "value": "28",
+                    "selected": false
+                },
+                {
+                    "text": "Nebraska",
+                    "value": "29",
+                    "selected": false
+                },
+                {
+                    "text": "Nevada",
+                    "value": "30",
+                    "selected": false
+                },
+                {
+                    "text": "New Hampshire",
+                    "value": "31",
+                    "selected": false
+                },
+                {
+                    "text": "New Jersey",
+                    "value": "32",
+                    "selected": false
+                },
+                {
+                    "text": "New Mexico",
+                    "value": "33",
+                    "selected": false
+                },
+                {
+                    "text": "New York",
+                    "value": "34",
+                    "selected": false
+                },
+                {
+                    "text": "North Carolina",
+                    "value": "35",
+                    "selected": false
+                },
+                {
+                    "text": "North Dakota",
+                    "value": "36",
+                    "selected": false
+                },
+                {
+                    "text": "Ohio",
+                    "value": "37",
+                    "selected": false
+                },
+                {
+                    "text": "Oklahoma",
+                    "value": "38",
+                    "selected": false
+                },
+                {
+                    "text": "Oregon",
+                    "value": "39",
+                    "selected": false
+                },
+                {
+                    "text": "Pennsylvania",
+                    "value": "40",
+                    "selected": false
+                },
+                {
+                    "text": "Puerto Rico",
+                    "value": "41",
+                    "selected": false
+                },
+                {
+                    "text": "Rhode Island",
+                    "value": "42",
+                    "selected": false
+                },
+                {
+                    "text": "South Carolina",
+                    "value": "43",
+                    "selected": false
+                },
+                {
+                    "text": "South Dakota",
+                    "value": "44",
+                    "selected": false
+                },
+                {
+                    "text": "Tennessee",
+                    "value": "45",
+                    "selected": false
+                },
+                {
+                    "text": "Texas",
+                    "value": "46",
+                    "selected": false
+                },
+                {
+                    "text": "Utah",
+                    "value": "47",
+                    "selected": false
+                },
+                {
+                    "text": "Vermont",
+                    "value": "48",
+                    "selected": false
+                },
+                {
+                    "text": "Virginia",
+                    "value": "49",
+                    "selected": false
+                },
+                {
+                    "text": "Virgin Islands",
+                    "value": "50",
+                    "selected": false
+                },
+                {
+                    "text": "Washington",
+                    "value": "51",
+                    "selected": false
+                },
+                {
+                    "text": "West Virginia",
+                    "value": "52",
+                    "selected": false
+                },
+                {
+                    "text": "Wisconsin",
+                    "value": "53",
+                    "selected": false
+                },
+                {
+                    "text": "Wyoming",
+                    "value": "54",
+                    "selected": false
+                }
+            ]
+        },
+        {
+            "index": 12,
+            "section": "Business Information",
+            "label": "Landlord Name",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": false,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-valid",
+                "id": "business.landLordName",
+                "name": "business.landLordName",
+                "ng-model": "business.landLordName",
+                "ng-disabled": "isFieldDisabled('business.landLordName')"
+            }
+        },
+        {
+            "index": 13,
+            "section": "Business Information",
+            "label": "Landlord Phone",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": false,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid",
+                "ng-model": "business.landLordPhone",
+                "type": "text",
+                "id": "business.landLordPhone",
+                "name": "business.landLordPhone",
+                "ui-mask": "(999) 999-9999",
+                "ng-disabled": "isFieldDisabled('business.landLordPhone')",
+                "placeholder": "(___) ___-____"
+            }
+        },
+        {
+            "index": 14,
+            "section": "Financial Information",
+            "label": "Annual Business Revenue",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern",
+                "type": "text",
+                "currency-input": "",
+                "limit-to": "9",
+                "pattern": "\\d*",
+                "ng-pattern": "/^[0-9,]+$/",
+                "id": "selfReported.revenue",
+                "name": "selfReported.revenue",
+                "ng-model": "selfReported.revenue",
+                "ng-disabled": "isFieldDisabled('selfReported.revenue')",
+                "required": ""
+            }
+        },
+        {
+            "index": 15,
+            "section": "Financial Information",
+            "label": "Average Bank Balance",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern",
+                "type": "text",
+                "currency-input": "",
+                "limit-to": "9",
+                "pattern": "\\d*",
+                "ng-pattern": "/^[0-9,]+$/",
+                "id": "selfReported.averageBalance",
+                "name": "selfReported.averageBalance",
+                "ng-model": "selfReported.averageBalance",
+                "ng-disabled": "isFieldDisabled('selfReported.averageBalance')",
+                "required": ""
+            }
+        },
+        {
+            "index": 16,
+            "section": "Financial Information",
+            "label": "Monthly Credit Card Vol.",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": false,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid ng-scope ng-valid-pattern",
+                "type": "text",
+                "currency-input": "",
+                "limit-to": "9",
+                "pattern": "\\d*",
+                "ng-pattern": "/^[0-9,]+$/",
+                "id": "selfReported.averageCCvolume",
+                "name": "selfReported.averageCCvolume",
+                "ng-model": "selfReported.averageCCvolume",
+                "ng-disabled": "isFieldDisabled('selfReported.averageCCvolume')"
+            }
+        },
+        {
+            "index": 17,
+            "section": "Financial Information",
+            "label": "Cash Advance Balance",
+            "tag": "input",
+            "visible": false,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid ng-scope ng-valid-pattern ng-valid-required",
+                "type": "text",
+                "currency-input": "",
+                "limit-to": "9",
+                "pattern": "\\d*",
+                "ng-pattern": "/^[0-9,]+$/",
+                "id": "selfReported.mcaBalance",
+                "name": "selfReported.mcaBalance",
+                "ng-model": "selfReported.mcaBalance",
+                "ng-disabled": "isFieldDisabled('selfReported.mcaBalance')",
+                "ng-required": "showBalance"
+            }
+        },
+        {
+            "index": 18,
+            "section": "Owner:",
+            "label": "First Name",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "owner0.firstName",
+                "name": "owner0.firstName",
+                "ng-model": "firstName",
+                "ng-disabled": "ngDisabled",
+                "required": ""
+            }
+        },
+        {
+            "index": 19,
+            "section": "Owner:",
+            "label": "Last Name",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "owner0.lastName",
+                "name": "owner0.lastName",
+                "ng-model": "lastName",
+                "ng-disabled": "ngDisabled",
+                "required": ""
+            }
+        },
+        {
+            "index": 20,
+            "section": "Owner:",
+            "label": "SSN *",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required ng-valid-mask",
+                "id": "owner0.ssn",
+                "name": "owner0.genericId",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ui-mask": "999-99-9999",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-required": "vm.required",
+                "ng-blur": "vm.checkDLN(vm.index)",
+                "placeholder": "___-__-____",
+                "required": "required"
+            }
+        },
+        {
+            "index": 21,
+            "section": "Owner:",
+            "label": "Date of Birth",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required ng-valid-date",
+                "placeholder": "MM-DD-YYYY",
+                "is-open": "datePickerOpen",
+                "datepicker-popup": "MM-dd-yyyy",
+                "datepicker-options": "{showWeeks: false}",
+                "show-button-bar": "false",
+                "ng-model": "dateModel",
+                "ng-required": "true",
+                "close-text": "Close",
+                "ng-disabled": "ngDisabled",
+                "id": "owner0.dateOfBirth",
+                "name": "owner0.dateOfBirth",
+                "required": "required"
+            }
+        },
+        {
+            "index": 22,
+            "section": "Owner:",
+            "label": "Email",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid-email ng-invalid ng-invalid-required",
+                "type": "email",
+                "id": "owner0.email",
+                "name": "owner0.email",
+                "ng-model": "owner.email",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.email')",
+                "required": ""
+            }
+        },
+        {
+            "index": 23,
+            "section": "Owner:",
+            "label": "Home Phone",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "type": "text",
+                "id": "owner0.homePhone",
+                "name": "owner0.homePhone",
+                "ng-model": "owner.homePhone",
+                "ui-mask": "(999) 999-9999",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.homePhone')",
+                "required": "",
+                "placeholder": "(___) ___-____"
+            }
+        },
+        {
+            "index": 24,
+            "section": "Owner:",
+            "label": "Cell Phone",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "type": "text",
+                "id": "owner0.cellPhoneNumber",
+                "name": "owner0.cellPhoneNumber",
+                "ng-model": "owner.cellPhoneNumber",
+                "ui-mask": "(999) 999-9999",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.cellPhoneNumber')",
+                "required": "",
+                "placeholder": "(___) ___-____"
+            }
+        },
+        {
+            "index": 25,
+            "section": "Owner:",
+            "label": "Home Address (No P.O. box)",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "owner0.homeAddress.addressLine1",
+                "name": "owner0.homeAddress.addressLine1",
+                "ng-model": "owner.homeAddress.addressLine1",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.homeAddress.addressLine1')",
+                "required": ""
+            }
+        },
+        {
+            "index": 26,
+            "section": "Owner:",
+            "label": "Zip Code",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "address0.zipCode",
+                "name": "address0.code",
+                "ui-mask": "99999",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-required": "required",
+                "required": "required",
+                "placeholder": "_____"
+            }
+        },
+        {
+            "index": 27,
+            "section": "Owner:",
+            "label": "City",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "type": "text",
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "owner0.homeAddress.city",
+                "name": "owner0.homeAddress.city",
+                "ng-model": "owner.homeAddress.city",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.homeAddress.city')",
+                "required": ""
+            }
+        },
+        {
+            "index": 28,
+            "section": "Owner:",
+            "label": "State",
+            "tag": "select",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "address0.state",
+                "name": "address0.stateprovince",
+                "ng-model": "vm.ngModel[vm.modelName]",
+                "ng-options": "state.id as state.name for state in vm.states",
+                "ng-disabled": "vm.isComputedFieldDisabled()",
+                "ng-required": "vm.isRequired",
+                "required": "required"
+            },
+            "options": [
+                {
+                    "text": "Choose...",
+                    "value": "",
+                    "selected": true
+                },
+                {
+                    "text": "Alabama",
+                    "value": "0",
+                    "selected": false
+                },
+                {
+                    "text": "Alaska",
+                    "value": "1",
+                    "selected": false
+                },
+                {
+                    "text": "American Samoa",
+                    "value": "2",
+                    "selected": false
+                },
+                {
+                    "text": "Arizona",
+                    "value": "3",
+                    "selected": false
+                },
+                {
+                    "text": "Arkansas",
+                    "value": "4",
+                    "selected": false
+                },
+                {
+                    "text": "California",
+                    "value": "5",
+                    "selected": false
+                },
+                {
+                    "text": "Colorado",
+                    "value": "6",
+                    "selected": false
+                },
+                {
+                    "text": "Connecticut",
+                    "value": "7",
+                    "selected": false
+                },
+                {
+                    "text": "Delaware",
+                    "value": "8",
+                    "selected": false
+                },
+                {
+                    "text": "District of Columbia",
+                    "value": "9",
+                    "selected": false
+                },
+                {
+                    "text": "Florida",
+                    "value": "10",
+                    "selected": false
+                },
+                {
+                    "text": "Georgia",
+                    "value": "11",
+                    "selected": false
+                },
+                {
+                    "text": "Guam",
+                    "value": "12",
+                    "selected": false
+                },
+                {
+                    "text": "Hawaii",
+                    "value": "13",
+                    "selected": false
+                },
+                {
+                    "text": "Idaho",
+                    "value": "14",
+                    "selected": false
+                },
+                {
+                    "text": "Illinois",
+                    "value": "15",
+                    "selected": false
+                },
+                {
+                    "text": "Indiana",
+                    "value": "16",
+                    "selected": false
+                },
+                {
+                    "text": "Iowa",
+                    "value": "17",
+                    "selected": false
+                },
+                {
+                    "text": "Kansas",
+                    "value": "18",
+                    "selected": false
+                },
+                {
+                    "text": "Kentucky",
+                    "value": "19",
+                    "selected": false
+                },
+                {
+                    "text": "Louisiana",
+                    "value": "20",
+                    "selected": false
+                },
+                {
+                    "text": "Maine",
+                    "value": "21",
+                    "selected": false
+                },
+                {
+                    "text": "Maryland",
+                    "value": "22",
+                    "selected": false
+                },
+                {
+                    "text": "Massachusetts",
+                    "value": "23",
+                    "selected": false
+                },
+                {
+                    "text": "Michigan",
+                    "value": "24",
+                    "selected": false
+                },
+                {
+                    "text": "Minnesota",
+                    "value": "25",
+                    "selected": false
+                },
+                {
+                    "text": "Mississippi",
+                    "value": "26",
+                    "selected": false
+                },
+                {
+                    "text": "Missouri",
+                    "value": "27",
+                    "selected": false
+                },
+                {
+                    "text": "Montana",
+                    "value": "28",
+                    "selected": false
+                },
+                {
+                    "text": "Nebraska",
+                    "value": "29",
+                    "selected": false
+                },
+                {
+                    "text": "Nevada",
+                    "value": "30",
+                    "selected": false
+                },
+                {
+                    "text": "New Hampshire",
+                    "value": "31",
+                    "selected": false
+                },
+                {
+                    "text": "New Jersey",
+                    "value": "32",
+                    "selected": false
+                },
+                {
+                    "text": "New Mexico",
+                    "value": "33",
+                    "selected": false
+                },
+                {
+                    "text": "New York",
+                    "value": "34",
+                    "selected": false
+                },
+                {
+                    "text": "North Carolina",
+                    "value": "35",
+                    "selected": false
+                },
+                {
+                    "text": "North Dakota",
+                    "value": "36",
+                    "selected": false
+                },
+                {
+                    "text": "Ohio",
+                    "value": "37",
+                    "selected": false
+                },
+                {
+                    "text": "Oklahoma",
+                    "value": "38",
+                    "selected": false
+                },
+                {
+                    "text": "Oregon",
+                    "value": "39",
+                    "selected": false
+                },
+                {
+                    "text": "Pennsylvania",
+                    "value": "40",
+                    "selected": false
+                },
+                {
+                    "text": "Puerto Rico",
+                    "value": "41",
+                    "selected": false
+                },
+                {
+                    "text": "Rhode Island",
+                    "value": "42",
+                    "selected": false
+                },
+                {
+                    "text": "South Carolina",
+                    "value": "43",
+                    "selected": false
+                },
+                {
+                    "text": "South Dakota",
+                    "value": "44",
+                    "selected": false
+                },
+                {
+                    "text": "Tennessee",
+                    "value": "45",
+                    "selected": false
+                },
+                {
+                    "text": "Texas",
+                    "value": "46",
+                    "selected": false
+                },
+                {
+                    "text": "Utah",
+                    "value": "47",
+                    "selected": false
+                },
+                {
+                    "text": "Vermont",
+                    "value": "48",
+                    "selected": false
+                },
+                {
+                    "text": "Virginia",
+                    "value": "49",
+                    "selected": false
+                },
+                {
+                    "text": "Virgin Islands",
+                    "value": "50",
+                    "selected": false
+                },
+                {
+                    "text": "Washington",
+                    "value": "51",
+                    "selected": false
+                },
+                {
+                    "text": "West Virginia",
+                    "value": "52",
+                    "selected": false
+                },
+                {
+                    "text": "Wisconsin",
+                    "value": "53",
+                    "selected": false
+                },
+                {
+                    "text": "Wyoming",
+                    "value": "54",
+                    "selected": false
+                }
+            ]
+        },
+        {
+            "index": 29,
+            "section": "Owner:",
+            "label": "Ownership %",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-invalid-combined-percentage",
+                "type": "number",
+                "id": "owner0.ownershipPercentage",
+                "name": "owner0.ownershipPercentage",
+                "ng-model": "owner.ownershipPercentage",
+                "ng-disabled": "isFieldDisabled('owner' + $index + '.ownershipPercentage')",
+                "required": "",
+                "combined-percentage": ""
+            }
+        },
+        {
+            "index": 30,
+            "section": "Loan Requested",
+            "label": "Desired Loan Amount",
+            "tag": "input",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern",
+                "type": "text",
+                "currency-input": "",
+                "pattern": "\\d*",
+                "ng-pattern": "/^[0-9,]+$/",
+                "currency-input-range": "",
+                "currency-input-min": "desiredLoanAmountMin",
+                "currency-input-max": "desiredLoanAmountMax",
+                "limit-to": "6",
+                "id": "selfReported.desiredLoanAmount",
+                "name": "selfReported.desiredLoanAmount",
+                "ng-model": "selfReported.desiredLoanAmount",
+                "popover-trigger": "keyup",
+                "popover-append-to-body": "true",
+                "ng-disabled": "isFieldDisabled('selfReported.desiredLoanAmount')",
+                "popover": "",
+                "required": ""
+            }
+        },
+        {
+            "index": 31,
+            "section": "Loan Requested",
+            "label": "Desired Loan Term",
+            "tag": "select",
+            "visible": true,
+            "disabled": false,
+            "required": false,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid",
+                "id": "selfReported.desiredLoanTerm",
+                "name": "selfReported.desiredLoanTerm",
+                "ng-model": "selfReported.desiredLoanTerm",
+                "ng-options": "loanTerm.id as loanTerm.period for loanTerm in loanTerms",
+                "ng-disabled": "isFieldDisabled('selfReported.desiredLoanTerm')"
+            },
+            "options": [
+                {
+                    "text": "Choose...",
+                    "value": "",
+                    "selected": true
+                },
+                {
+                    "text": "6 months",
+                    "value": "0",
+                    "selected": false
+                },
+                {
+                    "text": "9 months",
+                    "value": "1",
+                    "selected": false
+                },
+                {
+                    "text": "12 months",
+                    "value": "2",
+                    "selected": false
+                },
+                {
+                    "text": "15 months",
+                    "value": "3",
+                    "selected": false
+                },
+                {
+                    "text": "18 months",
+                    "value": "4",
+                    "selected": false
+                }
+            ]
+        },
+        {
+            "index": 32,
+            "section": "Loan Requested",
+            "label": "Purpose of Loan",
+            "tag": "select",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "id": "business.loanPurpose",
+                "name": "business.loanPurpose",
+                "ng-model": "business.loanPurpose",
+                "ng-options": "purposeOfLoan.id as purposeOfLoan.purpose for purposeOfLoan in purposesOfLoan",
+                "ng-disabled": "isFieldDisabled('business.loanPurpose')",
+                "ng-required": "isUSA",
+                "required": "required"
+            },
+            "options": [
+                {
+                    "text": "Choose...",
+                    "value": "",
+                    "selected": true
+                },
+                {
+                    "text": "Business Expansion",
+                    "value": "0",
+                    "selected": false
+                },
+                {
+                    "text": "Capital / Facilities Improvements",
+                    "value": "1",
+                    "selected": false
+                },
+                {
+                    "text": "Equipment Purchase",
+                    "value": "2",
+                    "selected": false
+                },
+                {
+                    "text": "Inventory, Merchandise, or Specified Goods",
+                    "value": "3",
+                    "selected": false
+                },
+                {
+                    "text": "New Location",
+                    "value": "4",
+                    "selected": false
+                },
+                {
+                    "text": "Sales Transaction Financing",
+                    "value": "5",
+                    "selected": false
+                },
+                {
+                    "text": "Services (e.g. training)",
+                    "value": "6",
+                    "selected": false
+                },
+                {
+                    "text": "Debt Refinancing",
+                    "value": "7",
+                    "selected": false
+                },
+                {
+                    "text": "Insurance",
+                    "value": "8",
+                    "selected": false
+                },
+                {
+                    "text": "Payables",
+                    "value": "9",
+                    "selected": false
+                },
+                {
+                    "text": "Working Capital",
+                    "value": "10",
+                    "selected": false
+                },
+                {
+                    "text": "Other",
+                    "value": "11",
+                    "selected": false
+                }
+            ]
+        },
+        {
+            "index": 33,
+            "section": "Loan Requested",
+            "label": "Partner Deal Notes",
+            "tag": "textarea",
+            "visible": true,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid ng-valid-required",
+                "id": "additionalInfo.partnerDealNotes",
+                "name": "additionalInfo.partnerDealNotes",
+                "ng-model": "additionalInfo.partnerDealNotes",
+                "ng-disabled": "isFieldDisabled('additionalInfo.partnerDealNotes')",
+                "ng-required": "(isAUS || isPartnerDealNotesRequired)"
+            }
+        },
+        {
+            "index": 34,
+            "section": "Loan Requested",
+            "label": "as Filter by user",
+            "tag": "select",
+            "visible": false,
+            "disabled": false,
+            "required": true,
+            "attributes": {
+                "class": "form-control ng-pristine ng-untouched ng-valid ng-hide ng-valid-required",
+                "ng-options": "user.id as (user.firstName + ' ' + user.lastName) for user in managedUserChoices",
+                "ng-required": "managedUserChoices.length > 0",
+                "ng-show": "showSelection",
+                "ng-model": "ngModel"
+            },
+            "options": [
+                {
+                    "text": "Filter by user",
+                    "value": "",
+                    "selected": true
+                }
+            ]
+        }
+    ],
+    "buttons": [
+        {
+            "tag": "button",
+            "text": "",
+            "disabled": false,
+            "attributes": {
+                "class": " osano-cm-dialog__close osano-cm-close "
+            }
+        },
+        {
+            "tag": "button",
+            "text": "",
+            "disabled": false,
+            "attributes": {
+                "class": " osano-cm-info-dialog-header__close osano-cm-close "
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Sign Out",
+            "disabled": false,
+            "attributes": {
+                "href": "../#/login",
+                "ng-click": "logout()",
+                "class": "dropMenu__menuItemLink"
+            }
+        },
+        {
+            "tag": "button",
+            "text": "Continue",
+            "disabled": false,
+            "attributes": {
+                "class": "btn btn-primary ng-binding ng-scope",
+                "ng-disabled": "vm.isDisabled",
+                "analytics-on": "",
+                "analytics-event": "Preapproval Button",
+                "type": "submit"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "",
+            "disabled": false,
+            "attributes": {
+                "class": "btn btn-default",
+                "ng-click": "toggle($event)",
+                "ng-disabled": "ngDisabled"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Yes",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.separateBusinessBankAccount",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "true",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "No",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.separateBusinessBankAccount",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Yes",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.creditCardMoreThan3months",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "true",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "No",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.creditCardMoreThan3months",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "false",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Yes",
+            "disabled": false,
+            "attributes": {
+                "name": "showBalance",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "true",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "No",
+            "disabled": false,
+            "attributes": {
+                "name": "showBalance",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "false",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "",
+            "disabled": false,
+            "attributes": {
+                "class": "btn btn-default",
+                "ng-click": "toggle($event)",
+                "ng-disabled": "ngDisabled"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Add Owner 2",
+            "disabled": false,
+            "attributes": {
+                "class": "btn btn-default btn-large ng-scope",
+                "ng-if": "owners.length === 1",
+                "ng-click": "addOwner()",
+                "ng-disabled": "isFieldDisabled('addRemoveOwner')"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "Yes",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.hasAdditionalManagingPartners",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "true",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "a",
+            "text": "No",
+            "disabled": false,
+            "attributes": {
+                "name": "selfReported.hasAdditionalManagingPartners",
+                "class": "btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required",
+                "ng-model": "ngModel",
+                "btn-radio": "false",
+                "ng-disabled": "ngDisabled",
+                "ng-required": "ngRequired",
+                "required": "required"
+            }
+        },
+        {
+            "tag": "button",
+            "text": "Continue",
+            "disabled": false,
+            "attributes": {
+                "class": "btn btn-primary ng-binding ng-scope",
+                "ng-disabled": "vm.isDisabled",
+                "analytics-on": "",
+                "analytics-event": "Preapproval Button",
+                "type": "submit"
+            }
+        },
+        {
+            "tag": "span",
+            "text": "",
+            "disabled": false,
+            "attributes": {
+                "class": "toast__close",
+                "ng-click": "closeToast()"
+            }
+        }
+    ],
+    "forms": [
+        {
+            "name": "newApplication",
+            "ng-submit": "onSubmit(newApplication.$valid)",
+            "novalidate": "",
+            "class": "ng-pristine ng-invalid ng-invalid-required ng-valid-pattern ng-valid-date ng-valid-email ng-invalid-combined-percentage ng-valid-mask"
+        }
+    ],
+    "html": "<div data-nosnippet=\"\" class=\"osano-cm-window\" dir=\"ltr\"> <div hidden=\"\" class=\"osano-visually-hidden\"> <span id=\"osano-cm-aria.newWindow\">Opens in a new window</span> <span id=\"osano-cm-aria.external\">Opens an external website</span> <span id=\"osano-cm-aria.externalNewWindow\">Opens an external website in a new window</span> </div> <div role=\"dialog\" id=\"01b43c71-445c-493f-9ca5-a0c1a96c4809\" aria-label=\"Cookie Consent Banner\" aria-describedby=\"01b43c71-445c-493f-9ca5-a0c1a96c4809__label\" class=\"osano-cm-window__dialog osano-cm-dialog osano-cm-dialog--position_bottom osano-cm-dialog--type_bar\"> <button class=\" osano-cm-dialog__close osano-cm-close \"> </button> <div class=\" osano-cm-dialog__content osano-cm-content \"> <span id=\"01b43c71-445c-493f-9ca5-a0c1a96c4809__label\" class=\" osano-cm-content__message osano-cm-message \"> By using this website, you agree to our use of cookies to collect and record information about your browsing session, to optimize site functionality, for analytical purposes, and to advertise to you through third parties. Learn more at ‎ </span> <a rel=\"noopener\" tabindex=\"0\" href=\"https://partners.ondeck.com/v2/resources/#/privacy\" target=\"_blank\" class=\" osano-cm-storage-policy osano-cm-content__link osano-cm-link \" aria-describedby=\"osano-cm-aria.newWindow\">Cookie Notice</a> </div> </div> <button id=\"b05f681d-f9cd-47f0-b7e8-549a94371566\" class=\" osano-cm-window__widget osano-cm-widget osano-cm-widget--hidden osano-cm-widget--position_right \" title=\"Cookie Preferences\" aria-label=\"Cookie Preferences\"> </button> <div role=\"dialog\" aria-modal=\"true\" id=\"85278c6c-6409-4e12-b28a-1367fed4f0ed\" aria-labelledby=\"85278c6c-6409-4e12-b28a-1367fed4f0ed__label\" aria-hidden=\"true\" class=\" osano-cm-window__info-dialog osano-cm-info-dialog osano-cm-info-dialog--hidden \"> <span tabindex=\"0\" aria-hidden=\"true\" data-focus=\"first\"></span> <div role=\"presentation\" class=\" osano-cm-info-dialog__info osano-cm-info osano-cm-info--position_right \"> <div role=\"presentation\" class=\" osano-cm-info__info-dialog-header osano-cm-info-dialog-header \"> <p role=\"heading\" aria-level=\"1\" aria-hidden=\"true\" id=\"85278c6c-6409-4e12-b28a-1367fed4f0ed__label\" class=\" osano-cm-info-dialog-header__header osano-cm-header \"> </p> <button class=\" osano-cm-info-dialog-header__close osano-cm-close \"> </button> </div> <div role=\"presentation\" class=\" osano-cm-info__info-views osano-cm-info-views osano-cm-info-views--hidden osano-cm-info-views--position_0 \"> </div> </div> <span tabindex=\"0\" aria-hidden=\"true\" data-focus=\"last\"></span> </div> </div> <banner class=\"ng-isolate-scope\"><div id=\"banner\"> <div class=\"preheader\"> <div class=\"preheader__inner\"> <ul class=\"preheader__menu\"> <li class=\"preheader__menuItem preheader__menuItem--feedback hidden-xs\"> <a href=\"mailto:partnerfeedback@ondeck.com?subject=Feedback - Partner Portal&amp;body=%0D%0A--------------------------------------------------------------------------------------%0D%0APlease provide us with your feedback on OnDeck's Partner Portal!%0D%0A%0D%0ASome feedback types that you might want to consider:%0D%0A- Request a new feature%0D%0A- Report an issue%0D%0A- Overall design / ease of use\"><i class=\"fa fa-bullhorn\"></i>Feedback</a> </li> <li class=\"preheader__menuItem ng-binding ng-scope\" ng-if=\"currentAuthorizedUser().salesAgent\"> <span class=\"hidden-xs\"> Account Manager: </span> <strong class=\"ng-binding\">David Antigua</strong> 2127867852 · <a href=\"mailto:dantigua@ondeck.com\" class=\"ng-binding\"> dantigua@ondeck.com </a> </li> </ul> </div> </div> <header class=\"hdr2 hdr2--activeSubMenu\" ng-class=\"{ 'hdr2--activeSubMenu': isUserSessionComplete() }\"> <div class=\"hdr2__inner\" style=\"\"> <h2 class=\"hdr2__logoWrapper\"> <a class=\"hdr2__logoLink\" ui-sref=\"home\" ui-sref-opts=\"{reload: true}\" href=\"#/home\"><img class=\"hdr2__logo \" src=\"assets/ondeck-logo-2016.png\" alt=\"\" title=\"\"></a> <span class=\"hdr2__partnerLogoWrapper\"> <span class=\"hdr2__byline\"> Partner Portal </span> </span> </h2> <ul class=\"hdr2__subMenu\" ng-show=\"isUserSessionComplete()\" style=\"\"> <li ng-repeat=\"navItem in topLevelNav\" class=\"hdr2__subMenuItem ng-scope\" ng-if=\"shouldDisplay(navItem)\"> <a ui-sref=\"application({id: null})\" ui-sref-opts=\"navItem.options\" ng-class=\"{active: isActive(navItem.stateName)}\" class=\"hdr2__subMenuItemLink hdr2__subMenuItemLink--with-button\" href=\"#/application/\"> <span ng-class=\"{navButton: navItem.icon}\" class=\"ng-binding navButton\"> <i ng-if=\"navItem.icon\" class=\"fa fa-file-text-o\"></i> New App </span> </a> </li><li ng-repeat=\"navItem in topLevelNav\" class=\"hdr2__subMenuItem ng-scope\" ng-if=\"shouldDisplay(navItem)\"> <a ui-sref=\"deals.submitted\" ui-sref-opts=\"navItem.options\" ng-class=\"{active: isActive(navItem.stateName)}\" class=\"hdr2__subMenuItemLink hdr2__subMenuItemLink--with-button\" href=\"#/deals/submitted\"> <span ng-class=\"{navButton: navItem.icon}\" class=\"ng-binding\"> Deals </span> </a> </li><li ng-repeat=\"navItem in topLevelNav\" class=\"hdr2__subMenuItem ng-scope\" ng-if=\"shouldDisplay(navItem)\"> <a ui-sref=\"account.editAccount\" ui-sref-opts=\"navItem.options\" ng-class=\"{active: isActive(navItem.stateName)}\" class=\"hdr2__subMenuItemLink hdr2__subMenuItemLink--with-button\" href=\"#/account/edit\"> <span ng-class=\"{navButton: navItem.icon}\" class=\"ng-binding\"> Manage Users </span> </a> </li><li ng-repeat=\"navItem in topLevelNav\" class=\"hdr2__subMenuItem ng-scope\" ng-if=\"shouldDisplay(navItem)\"> <a ui-sref=\"resources\" ui-sref-opts=\"navItem.options\" ng-class=\"{active: isActive(navItem.stateName)}\" class=\"hdr2__subMenuItemLink hdr2__subMenuItemLink--with-button\" href=\"#/resources\"> <span ng-class=\"{navButton: navItem.icon}\" class=\"ng-binding\"> Resources </span> </a> </li> <li class=\"hdr2__subMenuItem visible-xs\"> <a href=\"mailto:\" class=\"hdr2__subMenuItemLink\"> Feedback </a> </li> </ul> <div class=\"hdr2__rightSide\"><div class=\"hdr2__rightSideInner\"> <div class=\"dropMenu ng-scope dropdown\" ng-if=\"currentAuthorizedUser()\" dropdown=\"\"> <a href=\"#\" class=\"dropdown-toggle dropMenu__link\" dropdown-toggle=\"\" aria-haspopup=\"true\" aria-expanded=\"false\"> <div class=\"dropMenu__text ellipsis ng-binding\"> Appio Fragoletti </div> <div class=\"dropMenu__subText ellipsis ng-binding ng-scope\" ng-if=\"currentAuthorizedUser().accountName\"> Lexington Capital Holdings </div> </a> <ul class=\"dropdown-menu dropMenu__menu\"> <li ng-if=\"currentAuthorizedUser().externalUser\" class=\"dropMenu__menuItem ng-scope\"> <a ui-sref=\"profile\" class=\"dropMenu__menuItemLink\" href=\"#/profile\">Edit Profile</a> </li> <li ng-if=\"currentAuthorizedUser().externalUser\" class=\"dropMenu__menuItem ng-scope\"> <a ui-sref=\"changepassword\" class=\"dropMenu__menuItemLink\" href=\"#/changepassword\">Change Password</a> </li> <li class=\"dropMenu__menuItem\"> <a href=\"../#/login\" ng-click=\"logout()\" class=\"dropMenu__menuItemLink\">Sign Out</a> </li> </ul> </div> </div></div> </div> </header> </div> </banner> <div class=\"container container__main\"> <div ui-view=\"main\" class=\"ng-scope\"><div id=\"application\" class=\"ng-scope\"> <div class=\"row container ng-hide\" ng-show=\"applicationStatus\"> <div class=\"col-xs-12 well\"> <div class=\"row\"> <div class=\"col-xs-12\"> <h4 class=\"text-info pull-left ng-binding\"> </h4> <step-indicator class=\"pull-right ng-isolate-scope\" step=\"\"><ul class=\"list-inline\"> <li ng-repeat=\"stepName in stepNamesList\" class=\"ng-binding ng-scope\"> <i class=\"fa fa-fw\" ng-class=\"{'fa-play': (step == stepName)}\"></i> Documents </li><li ng-repeat=\"stepName in stepNamesList\" class=\"ng-binding ng-scope\"> <i class=\"fa fa-fw\" ng-class=\"{'fa-play': (step == stepName)}\"></i> Offers </li><li ng-repeat=\"stepName in stepNamesList\" class=\"ng-binding ng-scope\"> <i class=\"fa fa-fw\" ng-class=\"{'fa-play': (step == stepName)}\"></i> Closed </li> </ul> </step-indicator> </div> </div> <div class=\"row\"> <div class=\"col-xs-12\"> <span popover=\"Please reference the Application # in all correspondance, including email, with on OnDeck.\" popover-trigger=\"click\" popover-placement=\"right\">Application # <strong class=\"ng-binding\">--</strong></span> <span>Stage <strong class=\"ng-binding\"> </strong> </span> </div> </div> </div> </div> <div class=\"row ng-hide\" ng-show=\"messages.error().length &gt; 1 || messages.info().length &gt; 1 || messages.success().length &gt; 1 || approvedBannerMessage.length &gt; 0\"> <div class=\"col-xs-12\"> <div class=\"alert alert-danger ng-binding fade-and-shrink ng-hide\" ng-show=\"messages.error().length &gt; 1\" ng-class=\"{'fade-and-shrink': !messages.showError()}\"></div> <div class=\"alert alert-info ng-binding ng-hide\" ng-show=\"messages.info().length &gt; 1 \"></div> <div class=\"alert alert-success ng-binding ng-hide\" ng-show=\"messages.success().length &gt; 1 \"></div> <div class=\"alert alert-info ng-binding ng-hide\" ng-show=\"approvedBannerMessage.length &gt; 0\"></div> </div> </div> <ui-view class=\"ng-scope\"><od-application-form is-disabled=\"vm.isDisabled\" application-details=\"vm.applicationDetails\" required-fields-message=\"Please fill out all the required fields before continuing with the submission\" on-submit-success=\"vm.onSubmit(data, headerData)\" class=\"ng-scope ng-isolate-scope\"><loading loading-message=\"Please wait while we process your application (This can take up to 60 seconds).\" ng-show=\"isProcessing\" class=\"ng-scope ng-hide\"><div class=\"loadingWithMessage panel panel-default\"> <div class=\"panel-body\"> <p class=\"text-center ng-binding\">Please wait while we process your application (This can take up to 60 seconds).</p> <img class=\"img-responsive center-block\" style=\"min-width:80%\" src=\"assets/loaderAnimation.gif\"> </div> </div> </loading> <div id=\"new-application\" ng-hide=\"isProcessing\"> <form name=\"newApplication\" ng-submit=\"onSubmit(newApplication.$valid)\" novalidate=\"\" class=\"ng-pristine ng-invalid ng-invalid-required ng-valid-pattern ng-valid-date ng-valid-email ng-invalid-combined-percentage ng-valid-mask\"> <div class=\"row\"> <div class=\"col-xs-12\"> <div class=\"pull-left has-error ng-hide\" ng-show=\"!newApplication.$valid &amp;&amp; newApplication.$submitted\"> <p class=\"help-block ng-binding\"> Please fill out all the required fields before continuing with the submission </p> </div> <div class=\"pull-right managedUsers\"> <div class=\"pull-left\" ng-transclude=\"\"> <button class=\"btn btn-primary ng-binding ng-scope\" ng-disabled=\"vm.isDisabled\" analytics-on=\"\" analytics-event=\"Preapproval Button\" type=\"submit\">Continue</button> </div> <od-on-behalf-of-user class=\"pull-left ng-pristine ng-untouched ng-valid ng-isolate-scope\" ng-class=\"{'has-error':newApplication['contactId'].$invalid &amp;&amp; (newApplication['contactId'].$touched || newApplication.$submitted)}\" name=\"contactId\" ng-model=\"contactId\" prefix=\"as\"><label ng-show=\"showSelection\" class=\"ng-hide\"> <span class=\"managedUsers__prefix ng-binding ng-scope\" ng-if=\"prefix\"> as </span> <od-managed-users-select name=\"contactId\" ng-model=\"ngModel\" managed-user-choices=\"managedUserChoices\" show-selection=\"showSelection\" current-user=\"currentUser\" set-default-user=\"setDefaultUser\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><select class=\"form-control ng-pristine ng-untouched ng-valid ng-hide ng-valid-required\" ng-options=\"user.id as (user.firstName + ' ' + user.lastName) for user in managedUserChoices\" ng-required=\"managedUserChoices.length &gt; 0\" ng-show=\"showSelection\" ng-model=\"ngModel\"><option ng-show=\"!setDefaultUser\" value=\"\" class=\"ng-hide\">Filter by user</option></select> </od-managed-users-select> <span class=\"managedUsers__helpIcon\" tooltip=\"This submission will be attributed to this user\" tooltip-placement=\"left\" tooltip-class=\"application\"> <i class=\"fa fa-question-circle\"></i> </span> </label> </od-on-behalf-of-user> </div> </div> </div> <div class=\"row\"> <div class=\"col-xs-12\"> <h4 class=\"text-info\">Business Information</h4> </div> </div> <div class=\"row\"> <div class=\"col-sm-5 col-md-4\" ng-class=\"{'has-error':newApplication['business.name'].$invalid &amp;&amp; (newApplication['business.name'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.name\">Exact Legal Company Name</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.name\" name=\"business.name\" ng-model=\"business.name\" ng-disabled=\"isFieldDisabled('business.name')\" required=\"\"> </div> </div> <div class=\"col-sm-5 col-md-4\" ng-class=\"{'has-error':newApplication['business.doingBusinessAs'].$invalid &amp;&amp; (newApplication['business.doingBusinessAs'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.doingBusinessAs\" tooltip=\"If this is the same as the legal name, please re-enter it.\" tooltip-class=\"application\"> Doing Business As (DBA) <i class=\"fa fa-question-circle\"></i> </label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.doingBusinessAs\" ng-model=\"business.doingBusinessAs\" ng-disabled=\"isFieldDisabled('business.doingBusinessAs')\" name=\"business.doingBusinessAs\" required=\"\"> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error': ((newApplication['business.businessInceptionDate'].$error.max || newApplication['business.businessInceptionDate'].$error.required) &amp;&amp; (newApplication['business.businessInceptionDate'].$touched || newApplication.$submitted)) || newApplication['business.businessInceptionDate'].$error.isPast}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.businessInceptionDate\">Business Inception Date</label> <date-picker name=\"business.businessInceptionDate\" ng-model=\"business.businessInceptionDate\" ng-disabled=\"isFieldDisabled('business.businessInceptionDate')\" validate-date=\"isPast\" tooltip=\"\" tooltip-class=\"application\" required=\"\" class=\"ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required\"><div class=\"input-group\"> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required ng-valid-date\" placeholder=\"MM-DD-YYYY\" is-open=\"datePickerOpen\" datepicker-popup=\"MM-dd-yyyy\" datepicker-options=\"{showWeeks: false}\" show-button-bar=\"false\" ng-model=\"dateModel\" ng-required=\"true\" close-text=\"Close\" ng-disabled=\"ngDisabled\" id=\"business.businessInceptionDate\" name=\"business.businessInceptionDate\" required=\"required\"> <span class=\"input-group-btn\"> <a class=\"btn btn-default\" ng-click=\"toggle($event)\" ng-disabled=\"ngDisabled\"><i class=\"fa fa-calendar\"></i></a> </span> </div> </date-picker> </div> </div> <div class=\"col-sm-4 col-sm-offset-1\"> <div class=\"form-group\"> <od-business-government-id ng-model=\"business\" extra-fields=\"true\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" government-id-secondary-visible=\"business.isAbnAndAcnRequired\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div> <div class=\"form-group\" ng-class=\"{'has-error':((vm.showTypes &amp;&amp; vm.form['business.idType'].$invalid) || vm.form['business.genericID'].$invalid) &amp;&amp; (vm.form['business.idType'].$touched || vm.form['business.genericID'].$touched || vm.form.$submitted)}\"> <label class=\"control-label required ng-binding\" for=\"taxID\" tooltip=\"Federal Tax Identification Number, also known as Employer Identification Number (EIN)\" tooltip-class=\"application\"> Tax ID <i class=\"fa fa-question-circle\"></i> </label> <div> <div style=\"overflow:hidden\"> <od-sensitive-data-field is-ready=\"vm.isReady\" ng-model=\"vm.ngModel[vm.modelName]\" is-disabled=\"vm.isComputedFieldDisabled()\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-hide=\"vm.isEditing()\" class=\"form-control sensitive ng-binding ng-hide\" ng-disabled=\"isDisabled\"> <a class=\"pull-right ng-hide\" ng-hide=\"isDisabled || vm.isEditing()\" ng-click=\"vm.startEditMode()\">(edit)</a> </div> <div ng-transclude=\"\" ng-if=\"vm.isEditing()\" class=\"sensitive ng-scope\"> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required\" id=\"taxID\" name=\"business.genericID\" ui-mask=\"99-9999999\" ng-model=\"vm.ngModel[vm.modelName]\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-blur=\"vm.checkABNACN(vm.typeName, vm.modelName)\" required=\"\" placeholder=\"__-_______\"> </div> <a ng-hide=\"isDisabled || !vm.isEditing() || !displayValue\" ng-click=\"vm.stopEditMode()\" class=\"ng-hide\">(cancel)</a> </od-sensitive-data-field> </div> </div> </div> </div> </od-business-government-id> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-5 col-md-4\"> <od-legal-entity ng-model=\"business\" extra-fields=\"true\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" label-prefix=\"application\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div> <div class=\"form-group\" ng-class=\"{'has-error':vm.form['legalEntity'].$invalid &amp;&amp; (vm.form['legalEntity'].$touched || vm.form.$submitted)}\"> <label class=\"control-label required ng-binding\" for=\"legalEntity\">Company Type</label> <select class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"legalEntity\" name=\"legalEntity\" ng-model=\"vm.ngModel[vm.modelName]\" ng-options=\"legalEntity.code as legalEntity.name for legalEntity in vm.legalEntities\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-change=\"vm.onChange()\" required=\"\"><option value=\"\" class=\"\">Choose...</option><option value=\"0\" label=\"Sole Proprietor\">Sole Proprietor</option><option value=\"1\" label=\"Limited Liability Company (LLC)\">Limited Liability Company (LLC)</option><option value=\"2\" label=\"Corporation\">Corporation</option><option value=\"3\" label=\"General Partnership\">General Partnership</option><option value=\"4\" label=\"Limited Partnership (LP)\">Limited Partnership (LP)</option><option value=\"5\" label=\"Limited Liability Partnership (LLP)\">Limited Liability Partnership (LLP)</option></select> </div> </div> </od-legal-entity> </div> <div class=\"col-sm-5\" ng-class=\"{'has-error':newApplication['business.natureOfBusiness'].$invalid &amp;&amp; (newApplication['business.natureOfBusiness'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.natureOfBusiness\">Nature of Business</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.natureOfBusiness\" name=\"business.natureOfBusiness\" ng-model=\"business.natureOfBusiness\" ng-disabled=\"isFieldDisabled('business.natureOfBusiness')\" required=\"\"> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['business.phone'].$invalid &amp;&amp; (newApplication['business.phone'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.phone\">Business Phone</label> <div class=\"input-group\"> <div class=\"input-group-addon\"><i class=\"fa fa-phone\"></i></div> <input class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"business.phone\" ui-mask=\"(999) 999-9999\" ng-disabled=\"isFieldDisabled('business.phone')\" id=\"business.phone\" name=\"business.phone\" required=\"\" placeholder=\"(___) ___-____\"> </div> </div> </div> </div> <fieldset> <div class=\"row\"> <div class=\"col-sm-6 col-md-5\" ng-class=\"{'has-error':newApplication['business.address.addressLine1'].$invalid &amp;&amp; (newApplication['business.address.addressLine1'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"business.address.addressLine1\">Business Address (No P.O. box)</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.address.addressLine1\" name=\"business.address.addressLine1\" ng-model=\"business.address.addressLine1\" ng-disabled=\"isFieldDisabled('business.address.addressLine1')\" required=\"\"> </div> </div> <div class=\"col-xs-6 col-sm-2\"> <od-postal-code ng-model=\"business.address\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" required=\"true\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope ng-valid-required\"><div ng-class=\"{'has-error':vm.form['address' + vm.index + '.code'].$invalid &amp;&amp; (vm.form['address'+ vm.index +'.code'].$touched || vm.form.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"address.zipCode\">Zip Code</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"address.zipCode\" name=\"address.code\" ui-mask=\"99999\" ng-model=\"vm.ngModel[vm.modelName]\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-required=\"required\" placeholder=\"_____\" required=\"required\"> </div> </div> </od-postal-code> </div> </div> <div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['business.address.city'].$invalid &amp;&amp; (newApplication['business.address.city'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"business.address.city\">City</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.address.city\" name=\"business.address.city\" ng-model=\"business.address.city\" ng-disabled=\"isFieldDisabled('business.address.city')\" required=\"\"> </div> </div> <div class=\"col-sm-4 col-md-4\"> <od-state-province ng-model=\"business.address\" extra-fields=\"true\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" is-required=\"isStateOrProvinceRequiredInAddress()\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-class=\"{'has-error': vm.form['address' + vm.index + '.stateprovince'].$invalid &amp;&amp; (vm.form.$submitted || vm.form['address' + vm.index + '.stateprovince'].$touched)}\"> <div class=\"form-group\"> <label class=\"control-label ng-binding required\" ng-class=\"{required: vm.isRequired}\">State</label> <em style=\"font-size: 12px;\" class=\"ng-binding\"> We are unable to lend in ND</em> <select class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"address.state\" name=\"address.stateprovince\" ng-model=\"vm.ngModel[vm.modelName]\" ng-options=\"state.id as state.name for state in vm.states\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-required=\"vm.isRequired\" required=\"required\"><option value=\"\" class=\"\">Choose...</option><option value=\"0\" label=\"Alabama\">Alabama</option><option value=\"1\" label=\"Alaska\">Alaska</option><option value=\"2\" label=\"American Samoa\">American Samoa</option><option value=\"3\" label=\"Arizona\">Arizona</option><option value=\"4\" label=\"Arkansas\">Arkansas</option><option value=\"5\" label=\"California\">California</option><option value=\"6\" label=\"Colorado\">Colorado</option><option value=\"7\" label=\"Connecticut\">Connecticut</option><option value=\"8\" label=\"Delaware\">Delaware</option><option value=\"9\" label=\"District of Columbia\">District of Columbia</option><option value=\"10\" label=\"Florida\">Florida</option><option value=\"11\" label=\"Georgia\">Georgia</option><option value=\"12\" label=\"Guam\">Guam</option><option value=\"13\" label=\"Hawaii\">Hawaii</option><option value=\"14\" label=\"Idaho\">Idaho</option><option value=\"15\" label=\"Illinois\">Illinois</option><option value=\"16\" label=\"Indiana\">Indiana</option><option value=\"17\" label=\"Iowa\">Iowa</option><option value=\"18\" label=\"Kansas\">Kansas</option><option value=\"19\" label=\"Kentucky\">Kentucky</option><option value=\"20\" label=\"Louisiana\">Louisiana</option><option value=\"21\" label=\"Maine\">Maine</option><option value=\"22\" label=\"Maryland\">Maryland</option><option value=\"23\" label=\"Massachusetts\">Massachusetts</option><option value=\"24\" label=\"Michigan\">Michigan</option><option value=\"25\" label=\"Minnesota\">Minnesota</option><option value=\"26\" label=\"Mississippi\">Mississippi</option><option value=\"27\" label=\"Missouri\">Missouri</option><option value=\"28\" label=\"Montana\">Montana</option><option value=\"29\" label=\"Nebraska\">Nebraska</option><option value=\"30\" label=\"Nevada\">Nevada</option><option value=\"31\" label=\"New Hampshire\">New Hampshire</option><option value=\"32\" label=\"New Jersey\">New Jersey</option><option value=\"33\" label=\"New Mexico\">New Mexico</option><option value=\"34\" label=\"New York\">New York</option><option value=\"35\" label=\"North Carolina\">North Carolina</option><option value=\"36\" label=\"North Dakota\">North Dakota</option><option value=\"37\" label=\"Ohio\">Ohio</option><option value=\"38\" label=\"Oklahoma\">Oklahoma</option><option value=\"39\" label=\"Oregon\">Oregon</option><option value=\"40\" label=\"Pennsylvania\">Pennsylvania</option><option value=\"41\" label=\"Puerto Rico\">Puerto Rico</option><option value=\"42\" label=\"Rhode Island\">Rhode Island</option><option value=\"43\" label=\"South Carolina\">South Carolina</option><option value=\"44\" label=\"South Dakota\">South Dakota</option><option value=\"45\" label=\"Tennessee\">Tennessee</option><option value=\"46\" label=\"Texas\">Texas</option><option value=\"47\" label=\"Utah\">Utah</option><option value=\"48\" label=\"Vermont\">Vermont</option><option value=\"49\" label=\"Virginia\">Virginia</option><option value=\"50\" label=\"Virgin Islands\">Virgin Islands</option><option value=\"51\" label=\"Washington\">Washington</option><option value=\"52\" label=\"West Virginia\">West Virginia</option><option value=\"53\" label=\"Wisconsin\">Wisconsin</option><option value=\"54\" label=\"Wyoming\">Wyoming</option></select> </div> </div> </od-state-province> </div> </div> </fieldset> <div class=\"row\" ng-hide=\"isHidden\"> <div class=\"col-sm-5 col-md-4\"> <div class=\"form-group\"> <label class=\"control-label\" for=\"business.landLordName\">Landlord Name</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-valid\" id=\"business.landLordName\" name=\"business.landLordName\" ng-model=\"business.landLordName\" ng-disabled=\"isFieldDisabled('business.landLordName')\"> </div> </div> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['business.landLordPhone'].$invalid &amp;&amp; (newApplication['business.landLordPhone'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label\" for=\"business.landLordPhone\">Landlord Phone</label> <div class=\"input-group\"> <div class=\"input-group-addon\"><i class=\"fa fa-phone\"></i></div> <input class=\"form-control ng-pristine ng-untouched ng-valid\" ng-model=\"business.landLordPhone\" type=\"text\" id=\"business.landLordPhone\" name=\"business.landLordPhone\" ui-mask=\"(999) 999-9999\" ng-disabled=\"isFieldDisabled('business.landLordPhone')\" placeholder=\"(___) ___-____\"> </div> </div> </div> </div> <hr> <div class=\"row\"> <div class=\"col-xs-12\"> <h4 class=\"text-info\">Financial Information</h4> </div> </div> <div class=\"row\"> <div class=\"col-xs-8 col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['selfReported.revenue'].$invalid &amp;&amp; (newApplication['selfReported.revenue'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"selfReported.revenue\" tooltip=\"Bank deposit volume in a year\" tooltip-class=\"application\"> Annual Business Revenue <i class=\"fa fa-question-circle\"></i> </label> <div class=\"input-group\"> <div class=\"input-group-addon\">$</div> <input class=\"form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern\" type=\"text\" currency-input=\"\" limit-to=\"9\" pattern=\"\\d*\" ng-pattern=\"/^[0-9,]+$/\" id=\"selfReported.revenue\" name=\"selfReported.revenue\" ng-model=\"selfReported.revenue\" ng-disabled=\"isFieldDisabled('selfReported.revenue')\" required=\"\"> </div> </div> </div> <div class=\"col-xs-8 col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['selfReported.averageBalance'].$invalid &amp;&amp; (newApplication['selfReported.averageBalance'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"selfReported.averageBalance\">Average Bank Balance</label> <div class=\"input-group\"> <div class=\"input-group-addon\">$</div> <input class=\"form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern\" type=\"text\" currency-input=\"\" limit-to=\"9\" pattern=\"\\d*\" ng-pattern=\"/^[0-9,]+$/\" id=\"selfReported.averageBalance\" name=\"selfReported.averageBalance\" ng-model=\"selfReported.averageBalance\" ng-disabled=\"isFieldDisabled('selfReported.averageBalance')\" required=\"\"> </div> </div> </div> <div class=\"col-xs-8 col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['selfReported.averageCCvolume'].$invalid &amp;&amp; (newApplication['selfReported.averageCCvolume'].$touched || newApplication.$submitted)}\" ng-hide=\"isHidden\"> <div class=\"form-group\"> <label class=\"control-label\" for=\"selfReported.averageCCvolume\">Monthly Credit Card Vol.</label> <div class=\"input-group\"> <div class=\"input-group-addon\">$</div> <input class=\"form-control ng-pristine ng-untouched ng-valid ng-scope ng-valid-pattern\" type=\"text\" currency-input=\"\" limit-to=\"9\" pattern=\"\\d*\" ng-pattern=\"/^[0-9,]+$/\" id=\"selfReported.averageCCvolume\" name=\"selfReported.averageCCvolume\" ng-model=\"selfReported.averageCCvolume\" ng-disabled=\"isFieldDisabled('selfReported.averageCCvolume')\"> </div> </div> </div> </div> <br> <div class=\"form-horizontal\"> <od-buttons-group label=\"Does the merchant have a separate business bank account? *\" name=\"selfReported.separateBusinessBankAccount\" ng-model=\"selfReported.separateBusinessBankAccount\" ng-class=\"{'has-error':newApplication['selfReported.separateBusinessBankAccount'].$invalid &amp;&amp; (newApplication['selfReported.separateBusinessBankAccount'].$dirty || newApplication.$submitted)}\" ng-disabled=\"isFieldDisabled('selfReported.separateBusinessBankAccount')\" ng-required=\"true\" false-value-is-empty=\"true\" help-text=\"A separate business bank account is needed to qualify for an OnDeck Loan.\" show-help-when=\"newApplication['selfReported.separateBusinessBankAccount'].$invalid &amp;&amp; (newApplication['selfReported.separateBusinessBankAccount'].$dirty || newApplication.$submitted)\" class=\"ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required\" required=\"required\"><div class=\"form-group\"> <div class=\"col-sm-8 col-md-6 control-label\"> <label class=\"ng-binding\"> Does the merchant have a separate business bank account? * </label> <span ng-show=\"vm.moreInfo\" class=\"ng-binding ng-hide\"> </span> </div> <div class=\"col-sm-4 col-md-2\"> <div class=\"btn-group\"> <a name=\"selfReported.separateBusinessBankAccount\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"true\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">Yes</a> <a name=\"selfReported.separateBusinessBankAccount\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">No</a> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-md-4 ng-hide\" ng-show=\"showHelpWhen\"> <p class=\"help-block\"> <small class=\"ng-binding\"> A separate business bank account is needed to qualify for an OnDeck Loan. </small> </p> </div> </div> </od-buttons-group> <od-buttons-group label=\"Has the merchant accepted credit cards for 3 months or more? *\" name=\"selfReported.creditCardMoreThan3months\" ng-model=\"selfReported.creditCardMoreThan3months\" ng-class=\"{'has-error':newApplication['selfReported.creditCardMoreThan3months'].$invalid &amp;&amp; (newApplication['selfReported.creditCardMoreThan3months'].$dirty || newApplication.$submitted)}\" ng-disabled=\"isFieldDisabled('selfReported.creditCardMoreThan3months')\" ng-hide=\"isHidden\" ng-required=\"!isHidden\" class=\"ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required\" required=\"required\"><div class=\"form-group\"> <div class=\"col-sm-8 col-md-6 control-label\"> <label class=\"ng-binding\"> Has the merchant accepted credit cards for 3 months or more? * </label> <span ng-show=\"vm.moreInfo\" class=\"ng-binding ng-hide\"> </span> </div> <div class=\"col-sm-4 col-md-2\"> <div class=\"btn-group\"> <a name=\"selfReported.creditCardMoreThan3months\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"true\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">Yes</a> <a name=\"selfReported.creditCardMoreThan3months\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"false\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">No</a> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-md-4 ng-hide\" ng-show=\"showHelpWhen\"> <p class=\"help-block\"> <small class=\"ng-binding\"> </small> </p> </div> </div> </od-buttons-group> <od-buttons-group label=\"Does the merchant have a merchant cash advance (MCA)? *\" name=\"showBalance\" ng-model=\"showBalance\" ng-class=\"{'has-error':newApplication['showBalance'].$invalid &amp;&amp; (newApplication['showBalance'].$dirty || newApplication.$submitted) || newApplication['selfReported.mcaBalance'].$invalid &amp;&amp; (newApplication['selfReported.mcaBalance'].$dirty || newApplication.$submitted)}\" ng-disabled=\"isFieldDisabled('selfReported.mcaBalance')\" ng-hide=\"isHidden\" ng-required=\"!isHidden\" class=\"ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required\" required=\"required\"><div class=\"form-group\"> <div class=\"col-sm-8 col-md-6 control-label\"> <label class=\"ng-binding\"> Does the merchant have a merchant cash advance (MCA)? * </label> <span ng-show=\"vm.moreInfo\" class=\"ng-binding ng-hide\"> </span> </div> <div class=\"col-sm-4 col-md-2\"> <div class=\"btn-group\"> <a name=\"showBalance\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"true\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">Yes</a> <a name=\"showBalance\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"false\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">No</a> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-md-4 ng-hide\" ng-show=\"showHelpWhen\"> <p class=\"help-block\"> <small class=\"ng-binding\"> </small> </p> </div> </div> </od-buttons-group> <div class=\"form-group\"> <div class=\"col-xs-8 col-sm-4 hideInput\" id=\"mca-balance\" ng-class=\"{'showInput':showBalance, 'has-error':newApplication['selfReported.mcaBalance'].$invalid &amp;&amp; (newApplication['selfReported.mcaBalance'].$touched || newApplication.$submitted)}\" ng-hide=\"isHidden\"> <label class=\"required\">Cash Advance Balance</label> <div class=\"input-group\"> <div class=\"input-group-addon\">$</div> <input class=\"form-control ng-pristine ng-untouched ng-valid ng-scope ng-valid-pattern ng-valid-required\" type=\"text\" currency-input=\"\" limit-to=\"9\" pattern=\"\\d*\" ng-pattern=\"/^[0-9,]+$/\" id=\"selfReported.mcaBalance\" name=\"selfReported.mcaBalance\" ng-model=\"selfReported.mcaBalance\" ng-disabled=\"isFieldDisabled('selfReported.mcaBalance')\" ng-required=\"showBalance\"> </div> </div> </div> </div> <hr> <div class=\"row\"> <div class=\"col-xs-12\"> <h4 class=\"text-info\">Owner Information</h4> </div> </div> <owner-info ng-repeat=\"owner in owners\" class=\"ng-scope\"><div> <h4 class=\"owner-title ng-binding\">Owner: </h4> <owner-info-name ng-model=\"owner.name\" form=\"newApplication\" index=\"0\" ng-disabled=\"isFieldDisabled('owner' + $index + '.firstName') || isFieldDisabled('owner' + $index + '.lastName')\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':form['owner' + index + '.firstName'].$invalid &amp;&amp; (form['owner' + index + '.firstName'].$touched || form.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.firstName\">First Name</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"owner0.firstName\" name=\"owner0.firstName\" ng-model=\"firstName\" ng-disabled=\"ngDisabled\" required=\"\"> </div> </div> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':form['owner' + index + '.lastName'].$invalid &amp;&amp; (form['owner' + index + '.lastName'].$touched || form.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.lastName\">Last Name</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"owner0.lastName\" name=\"owner0.lastName\" ng-model=\"lastName\" ng-disabled=\"ngDisabled\" required=\"\"> </div> </div> </div> </owner-info-name> <div class=\"row\"> <div class=\"col-xs-8 col-sm-3\"> <od-owner-government-id ng-model=\"owner\" index=\"0\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-class=\"{'has-error':vm.form['owner' + vm.index + '.genericId'].$invalid &amp;&amp; (vm.form['owner' + vm.index + '.genericId'].$touched || vm.form.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label ng-binding\" for=\"vm.indexedModelName()\" popover=\"\" popover-trigger=\"click\">SSN * </label> <od-sensitive-data-field is-ready=\"vm.isReady\" ng-model=\"vm.ngModel[vm.modelName]\" is-disabled=\"vm.isComputedFieldDisabled()\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-hide=\"vm.isEditing()\" class=\"form-control sensitive ng-binding ng-hide\" ng-disabled=\"isDisabled\"> <a class=\"pull-right ng-hide\" ng-hide=\"isDisabled || vm.isEditing()\" ng-click=\"vm.startEditMode()\">(edit)</a> </div> <div ng-transclude=\"\" ng-if=\"vm.isEditing()\" class=\"sensitive ng-scope\"> <div class=\"input-group ng-scope\"> <div class=\"input-group-addon\"># </div> <input class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required ng-valid-mask\" id=\"owner0.ssn\" name=\"owner0.genericId\" ng-model=\"vm.ngModel[vm.modelName]\" ui-mask=\"999-99-9999\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-required=\"vm.required\" ng-blur=\"vm.checkDLN(vm.index)\" placeholder=\"___-__-____\" required=\"required\"> </div> </div> <a ng-hide=\"isDisabled || !vm.isEditing() || !displayValue\" ng-click=\"vm.stopEditMode()\" class=\"ng-hide\">(cancel)</a> </od-sensitive-data-field> </div> </div> </od-owner-government-id> </div> <div class=\"col-xs-8 col-sm-3\" ng-class=\"{'has-error':((newApplication['owner' + $index + '.dateOfBirth'].$error.max || newApplication['owner' + $index + '.dateOfBirth'].$error.required) &amp;&amp; (newApplication['owner' + $index + '.dateOfBirth'].$touched || newApplication.$submitted) || newApplication['owner' + $index + '.dateOfBirth'].$error.isPast)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.dateOfBirth\">Date of Birth</label> <od-sensitive-data-field ng-model=\"owner.dateOfBirth\" is-disabled=\"isFieldDisabled('owner' + $index + '.dateOfBirth')\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-hide=\"vm.isEditing()\" class=\"form-control sensitive ng-binding ng-hide\" ng-disabled=\"isDisabled\"> <a class=\"pull-right ng-hide\" ng-hide=\"isDisabled || vm.isEditing()\" ng-click=\"vm.startEditMode()\">(edit)</a> </div> <div ng-transclude=\"\" ng-if=\"vm.isEditing()\" class=\"sensitive ng-scope\"> <date-picker ng-model=\"owner.dateOfBirth\" ng-disabled=\"isFieldDisabled('owner' + $index + '.dateOfBirth')\" name=\"owner0.dateOfBirth\" validate-date=\"isPast\" tooltip=\"\" tooltip-class=\"application\" required=\"\" class=\"ng-pristine ng-untouched ng-scope ng-isolate-scope ng-invalid ng-invalid-required\"><div class=\"input-group\"> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required ng-valid-date\" placeholder=\"MM-DD-YYYY\" is-open=\"datePickerOpen\" datepicker-popup=\"MM-dd-yyyy\" datepicker-options=\"{showWeeks: false}\" show-button-bar=\"false\" ng-model=\"dateModel\" ng-required=\"true\" close-text=\"Close\" ng-disabled=\"ngDisabled\" id=\"owner0.dateOfBirth\" name=\"owner0.dateOfBirth\" required=\"required\"> <span class=\"input-group-btn\"> <a class=\"btn btn-default\" ng-click=\"toggle($event)\" ng-disabled=\"ngDisabled\"><i class=\"fa fa-calendar\"></i></a> </span> </div> </date-picker> </div> <a ng-hide=\"isDisabled || !vm.isEditing() || !displayValue\" ng-click=\"vm.stopEditMode()\" class=\"ng-hide\">(cancel)</a> </od-sensitive-data-field> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-6 col-md-4\" ng-class=\"{'has-error':newApplication['owner' + $index + '.email'].$invalid &amp;&amp; (newApplication['owner' + $index + '.email'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.email\">Email</label> <div class=\"input-group\"> <input class=\"form-control ng-pristine ng-untouched ng-valid-email ng-invalid ng-invalid-required\" type=\"email\" id=\"owner0.email\" name=\"owner0.email\" ng-model=\"owner.email\" ng-disabled=\"isFieldDisabled('owner' + $index + '.email')\" required=\"\"> </div> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['owner' + $index + '.homePhone'].$invalid &amp;&amp; (newApplication['owner' + $index + '.homePhone'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.homePhone\">Home Phone</label> <div class=\"input-group\"> <div class=\"input-group-addon\"><i class=\"fa fa-phone\"></i></div> <input class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" type=\"text\" id=\"owner0.homePhone\" name=\"owner0.homePhone\" ng-model=\"owner.homePhone\" ui-mask=\"(999) 999-9999\" ng-disabled=\"isFieldDisabled('owner' + $index + '.homePhone')\" required=\"\" placeholder=\"(___) ___-____\"> </div> </div> </div> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['owner' + $index + '.cellPhoneNumber'].$invalid &amp;&amp; (newApplication['owner' + $index + '.cellPhoneNumber'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"owner0.cellPhoneNumber\">Cell Phone</label> <div class=\"input-group\"> <div class=\"input-group-addon\"><i class=\"fa fa-phone\"></i></div> <input class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" type=\"text\" id=\"owner0.cellPhoneNumber\" name=\"owner0.cellPhoneNumber\" ng-model=\"owner.cellPhoneNumber\" ui-mask=\"(999) 999-9999\" ng-disabled=\"isFieldDisabled('owner' + $index + '.cellPhoneNumber')\" required=\"\" placeholder=\"(___) ___-____\"> </div> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-6 col-md-5\" ng-class=\"{'has-error':newApplication['owner' + $index + '.homeAddress.addressLine1'].$invalid &amp;&amp; (newApplication['owner' + $index + '.homeAddress.addressLine1'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.homeAddress.addressLine1\">Home Address (No P.O. box)</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"owner0.homeAddress.addressLine1\" name=\"owner0.homeAddress.addressLine1\" ng-model=\"owner.homeAddress.addressLine1\" ng-disabled=\"isFieldDisabled('owner' + $index + '.homeAddress.addressLine1')\" required=\"\"> </div> </div> <div class=\"col-sm-2\"> <od-postal-code ng-model=\"owner.homeAddress\" index=\"0\" form=\"newApplication\" is-field-disabled=\"isFieldDisabled(field)\" required=\"true\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope ng-valid-required\"><div ng-class=\"{'has-error':vm.form['address' + vm.index + '.code'].$invalid &amp;&amp; (vm.form['address'+ vm.index +'.code'].$touched || vm.form.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"address0.zipCode\">Zip Code</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"address0.zipCode\" name=\"address0.code\" ui-mask=\"99999\" ng-model=\"vm.ngModel[vm.modelName]\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-required=\"required\" required=\"required\" placeholder=\"_____\"> </div> </div> </od-postal-code> </div> </div> <div class=\"row\"> <div class=\"col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['owner' + $index + '.homeAddress.city'].$invalid &amp;&amp; (newApplication['owner' + $index + '.homeAddress.city'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required ng-binding\" for=\"owner0.homeAddress.city\">City</label> <input type=\"text\" class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"owner0.homeAddress.city\" name=\"owner0.homeAddress.city\" ng-model=\"owner.homeAddress.city\" ng-disabled=\"isFieldDisabled('owner' + $index + '.homeAddress.city')\" required=\"\"> </div> </div> <div class=\"col-md-4 col-sm-2\"> <od-state-province ng-model=\"owner.homeAddress\" form=\"newApplication\" index=\"0\" is-field-disabled=\"isFieldDisabled(field)\" is-required=\"isStateOrProvinceRequiredInAddress()\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><div ng-class=\"{'has-error': vm.form['address' + vm.index + '.stateprovince'].$invalid &amp;&amp; (vm.form.$submitted || vm.form['address' + vm.index + '.stateprovince'].$touched)}\"> <div class=\"form-group\"> <label class=\"control-label ng-binding required\" ng-class=\"{required: vm.isRequired}\">State</label> <em style=\"font-size: 12px;\" class=\"ng-binding\"></em> <select class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"address0.state\" name=\"address0.stateprovince\" ng-model=\"vm.ngModel[vm.modelName]\" ng-options=\"state.id as state.name for state in vm.states\" ng-disabled=\"vm.isComputedFieldDisabled()\" ng-required=\"vm.isRequired\" required=\"required\"><option value=\"\" class=\"\">Choose...</option><option value=\"0\" label=\"Alabama\">Alabama</option><option value=\"1\" label=\"Alaska\">Alaska</option><option value=\"2\" label=\"American Samoa\">American Samoa</option><option value=\"3\" label=\"Arizona\">Arizona</option><option value=\"4\" label=\"Arkansas\">Arkansas</option><option value=\"5\" label=\"California\">California</option><option value=\"6\" label=\"Colorado\">Colorado</option><option value=\"7\" label=\"Connecticut\">Connecticut</option><option value=\"8\" label=\"Delaware\">Delaware</option><option value=\"9\" label=\"District of Columbia\">District of Columbia</option><option value=\"10\" label=\"Florida\">Florida</option><option value=\"11\" label=\"Georgia\">Georgia</option><option value=\"12\" label=\"Guam\">Guam</option><option value=\"13\" label=\"Hawaii\">Hawaii</option><option value=\"14\" label=\"Idaho\">Idaho</option><option value=\"15\" label=\"Illinois\">Illinois</option><option value=\"16\" label=\"Indiana\">Indiana</option><option value=\"17\" label=\"Iowa\">Iowa</option><option value=\"18\" label=\"Kansas\">Kansas</option><option value=\"19\" label=\"Kentucky\">Kentucky</option><option value=\"20\" label=\"Louisiana\">Louisiana</option><option value=\"21\" label=\"Maine\">Maine</option><option value=\"22\" label=\"Maryland\">Maryland</option><option value=\"23\" label=\"Massachusetts\">Massachusetts</option><option value=\"24\" label=\"Michigan\">Michigan</option><option value=\"25\" label=\"Minnesota\">Minnesota</option><option value=\"26\" label=\"Mississippi\">Mississippi</option><option value=\"27\" label=\"Missouri\">Missouri</option><option value=\"28\" label=\"Montana\">Montana</option><option value=\"29\" label=\"Nebraska\">Nebraska</option><option value=\"30\" label=\"Nevada\">Nevada</option><option value=\"31\" label=\"New Hampshire\">New Hampshire</option><option value=\"32\" label=\"New Jersey\">New Jersey</option><option value=\"33\" label=\"New Mexico\">New Mexico</option><option value=\"34\" label=\"New York\">New York</option><option value=\"35\" label=\"North Carolina\">North Carolina</option><option value=\"36\" label=\"North Dakota\">North Dakota</option><option value=\"37\" label=\"Ohio\">Ohio</option><option value=\"38\" label=\"Oklahoma\">Oklahoma</option><option value=\"39\" label=\"Oregon\">Oregon</option><option value=\"40\" label=\"Pennsylvania\">Pennsylvania</option><option value=\"41\" label=\"Puerto Rico\">Puerto Rico</option><option value=\"42\" label=\"Rhode Island\">Rhode Island</option><option value=\"43\" label=\"South Carolina\">South Carolina</option><option value=\"44\" label=\"South Dakota\">South Dakota</option><option value=\"45\" label=\"Tennessee\">Tennessee</option><option value=\"46\" label=\"Texas\">Texas</option><option value=\"47\" label=\"Utah\">Utah</option><option value=\"48\" label=\"Vermont\">Vermont</option><option value=\"49\" label=\"Virginia\">Virginia</option><option value=\"50\" label=\"Virgin Islands\">Virgin Islands</option><option value=\"51\" label=\"Washington\">Washington</option><option value=\"52\" label=\"West Virginia\">West Virginia</option><option value=\"53\" label=\"Wisconsin\">Wisconsin</option><option value=\"54\" label=\"Wyoming\">Wyoming</option></select> </div> </div> </od-state-province> </div> </div> <div class=\"row\"> <div class=\"col-xs-6 col-sm-3 col-md-2\" ng-class=\"{'has-error':newApplication['owner' + $index + '.ownershipPercentage'].$invalid &amp;&amp; (newApplication['owner' + $index + '.ownershipPercentage'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"owner0.ownershipPercentage\">Ownership %</label> <div class=\"input-group\"> <input class=\"form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-invalid-combined-percentage\" type=\"number\" id=\"owner0.ownershipPercentage\" name=\"owner0.ownershipPercentage\" ng-model=\"owner.ownershipPercentage\" ng-disabled=\"isFieldDisabled('owner' + $index + '.ownershipPercentage')\" required=\"\" combined-percentage=\"\"> <div class=\"input-group-addon\">%</div> </div> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-xs-12 col-md-6 has-error ng-hide\" ng-show=\"newApplication['owner' + $index + '.ownershipPercentage'].$invalid &amp;&amp; (newApplication['owner' + $index + '.ownershipPercentage'].$touched || newApplication.$submitted)\"> <span class=\"help-block\">Please enter a valid ownership percentage in order to receive approval. Please add up to 2 owners / partners as needed.</span> </div> </div> <br> <div class=\"row\"> <div class=\"col-xs-12\"> <div class=\"btn-group btn-group-md\"> <a class=\"btn btn-default btn-large ng-scope\" ng-if=\"owners.length === 1\" ng-click=\"addOwner()\" ng-disabled=\"isFieldDisabled('addRemoveOwner')\"><i class=\"fa fa-plus\"></i>&nbsp;Add Owner 2</a> </div> </div> </div> </div> </owner-info> <br> <div class=\"form-horizontal\" ng-show=\"showBusinessInformationQuestion\"> <od-buttons-group label=\"Does your business have an individual with significant responsibility for managing the legal entity other than you? *\" more-info=\"Examples include an executive officer or senior manager (eg. CEO, CFO, COO, Managing Partner, Partner, President, VP or Treasurer), or any other individual who regularly performs similar functions.\" name=\"selfReported.hasAdditionalManagingPartners\" ng-model=\"selfReported.hasAdditionalManagingPartners\" ng-class=\"{'has-error':newApplication['selfReported.hasAdditionalManagingPartners'].$invalid &amp;&amp; (newApplication['selfReported.hasAdditionalManagingPartners'].$dirty || newApplication.$submitted)}\" ng-disabled=\"!showBusinessInformationQuestion\" ng-required=\"showBusinessInformationQuestion\" class=\"ng-pristine ng-untouched ng-isolate-scope ng-invalid ng-invalid-required\" required=\"required\"><div class=\"form-group\"> <div class=\"col-sm-8 col-md-6 control-label\"> <label class=\"ng-binding\"> Does your business have an individual with significant responsibility for managing the legal entity other than you? * </label> <span ng-show=\"vm.moreInfo\" class=\"ng-binding\"> Examples include an executive officer or senior manager (eg. CEO, CFO, COO, Managing Partner, Partner, President, VP or Treasurer), or any other individual who regularly performs similar functions. </span> </div> <div class=\"col-sm-4 col-md-2\"> <div class=\"btn-group\"> <a name=\"selfReported.hasAdditionalManagingPartners\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"true\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">Yes</a> <a name=\"selfReported.hasAdditionalManagingPartners\" class=\"btn btn-default ng-pristine ng-untouched ng-invalid ng-invalid-required\" ng-model=\"ngModel\" btn-radio=\"false\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" required=\"required\">No</a> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-md-4 ng-hide\" ng-show=\"showHelpWhen\"> <p class=\"help-block\"> <small class=\"ng-binding\"> </small> </p> </div> </div> </od-buttons-group> </div> <div class=\"form-horizontal ng-hide\" ng-show=\"showAdditionalOwnersMoreThan25\"> <od-buttons-group label=\"Are there any additional individuals that own, directly or indirectly, 25% or more of the business? *\" name=\"selfReported.hasAdditionalOwnersMoreThan25\" ng-model=\"selfReported.hasAdditionalOwnersMoreThan25\" ng-class=\"{'has-error':newApplication['selfReported.hasAdditionalOwnersMoreThan25'].$invalid &amp;&amp; (newApplication['selfReported.hasAdditionalOwnersMoreThan25'].$dirty || newApplication.$submitted)}\" ng-disabled=\"!showAdditionalOwnersMoreThan25\" ng-required=\"showAdditionalOwnersMoreThan25\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope ng-valid-required\" disabled=\"disabled\"><div class=\"form-group\"> <div class=\"col-sm-8 col-md-6 control-label\"> <label class=\"ng-binding\"> Are there any additional individuals that own, directly or indirectly, 25% or more of the business? * </label> <span ng-show=\"vm.moreInfo\" class=\"ng-binding ng-hide\"> </span> </div> <div class=\"col-sm-4 col-md-2\"> <div class=\"btn-group\"> <a name=\"selfReported.hasAdditionalOwnersMoreThan25\" class=\"btn btn-default ng-pristine ng-untouched ng-valid ng-valid-required\" ng-model=\"ngModel\" btn-radio=\"true\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" disabled=\"disabled\">Yes</a> <a name=\"selfReported.hasAdditionalOwnersMoreThan25\" class=\"btn btn-default ng-pristine ng-untouched ng-valid ng-valid-required\" ng-model=\"ngModel\" btn-radio=\"false\" ng-disabled=\"ngDisabled\" ng-required=\"ngRequired\" disabled=\"disabled\">No</a> </div> </div> <div class=\"clearfix visible-sm-block\"></div> <div class=\"col-md-4 ng-hide\" ng-show=\"showHelpWhen\"> <p class=\"help-block\"> <small class=\"ng-binding\"> </small> </p> </div> </div> </od-buttons-group> </div> <hr> <div class=\"row\"> <div class=\"col-xs-12\"> <h4 class=\"text-info\">Loan Requested</h4> </div> </div> <div class=\"row\"> <div class=\"col-xs-8 col-sm-4 col-md-3\" ng-class=\"{'has-error':newApplication['selfReported.desiredLoanAmount'].$invalid &amp;&amp; (newApplication['selfReported.desiredLoanAmount'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" for=\"selfReported.desiredLoanAmount\">Desired Loan Amount</label> <div class=\"input-group\"> <div class=\"input-group-addon\">$</div> <input class=\"form-control ng-pristine ng-untouched ng-scope ng-invalid ng-invalid-required ng-valid-pattern\" type=\"text\" currency-input=\"\" pattern=\"\\d*\" ng-pattern=\"/^[0-9,]+$/\" currency-input-range=\"\" currency-input-min=\"desiredLoanAmountMin\" currency-input-max=\"desiredLoanAmountMax\" limit-to=\"6\" id=\"selfReported.desiredLoanAmount\" name=\"selfReported.desiredLoanAmount\" ng-model=\"selfReported.desiredLoanAmount\" popover-trigger=\"keyup\" popover-append-to-body=\"true\" ng-disabled=\"isFieldDisabled('selfReported.desiredLoanAmount')\" popover=\"\" required=\"\"> </div> </div> </div> <div class=\"col-xs-8 col-sm-4 col-md-2\" ng-class=\"{'has-error':newApplication['selfReported.desiredLoanTerm'].$invalid &amp;&amp; (newApplication['selfReported.desiredLoanTerm'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label\" for=\"selfReported.desiredLoanTerm\">Desired Loan Term</label> <select class=\"form-control ng-pristine ng-untouched ng-valid\" id=\"selfReported.desiredLoanTerm\" name=\"selfReported.desiredLoanTerm\" ng-model=\"selfReported.desiredLoanTerm\" ng-options=\"loanTerm.id as loanTerm.period for loanTerm in loanTerms\" ng-disabled=\"isFieldDisabled('selfReported.desiredLoanTerm')\"><option value=\"\" class=\"\">Choose...</option><option value=\"0\" label=\"6 months\">6 months</option><option value=\"1\" label=\"9 months\">9 months</option><option value=\"2\" label=\"12 months\">12 months</option><option value=\"3\" label=\"15 months\">15 months</option><option value=\"4\" label=\"18 months\">18 months</option></select> </div> </div> </div> <div class=\"row\"> <div class=\"col-sm-8 col-md-5\" ng-class=\"{'has-error':newApplication['business.loanPurpose'].$invalid &amp;&amp; (newApplication['business.loanPurpose'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label required\" ng-class=\"{'required':isUSA}\" for=\"business.loanPurpose\">Purpose of Loan</label> <select class=\"form-control ng-pristine ng-untouched ng-invalid ng-invalid-required\" id=\"business.loanPurpose\" name=\"business.loanPurpose\" ng-model=\"business.loanPurpose\" ng-options=\"purposeOfLoan.id as purposeOfLoan.purpose for purposeOfLoan in purposesOfLoan\" ng-disabled=\"isFieldDisabled('business.loanPurpose')\" ng-required=\"isUSA\" required=\"required\"><option value=\"\" class=\"\">Choose...</option><option value=\"0\" label=\"Business Expansion\">Business Expansion</option><option value=\"1\" label=\"Capital / Facilities Improvements\">Capital / Facilities Improvements</option><option value=\"2\" label=\"Equipment Purchase\">Equipment Purchase</option><option value=\"3\" label=\"Inventory, Merchandise, or Specified Goods\">Inventory, Merchandise, or Specified Goods</option><option value=\"4\" label=\"New Location\">New Location</option><option value=\"5\" label=\"Sales Transaction Financing\">Sales Transaction Financing</option><option value=\"6\" label=\"Services (e.g. training)\">Services (e.g. training)</option><option value=\"7\" label=\"Debt Refinancing\">Debt Refinancing</option><option value=\"8\" label=\"Insurance\">Insurance</option><option value=\"9\" label=\"Payables\">Payables</option><option value=\"10\" label=\"Working Capital\">Working Capital</option><option value=\"11\" label=\"Other\">Other</option></select> </div> </div> </div> <div class=\"row\"> <div class=\"col-xs-12 col-sm-8 col-md-5\" ng-class=\"{'has-error':(isAUS || isPartnerDealNotesRequired) &amp;&amp; newApplication['additionalInfo.partnerDealNotes'].$invalid &amp;&amp; (newApplication['additionalInfo.partnerDealNotes'].$touched || newApplication.$submitted)}\"> <div class=\"form-group\"> <label class=\"control-label\" ng-class=\"{'required':(isAUS || isPartnerDealNotesRequired)}\" for=\"additionalInfo.partnerDealNotes\">Partner Deal Notes</label> <br> <textarea class=\"form-control ng-pristine ng-untouched ng-valid ng-valid-required\" id=\"additionalInfo.partnerDealNotes\" name=\"additionalInfo.partnerDealNotes\" ng-model=\"additionalInfo.partnerDealNotes\" ng-disabled=\"isFieldDisabled('additionalInfo.partnerDealNotes')\" ng-required=\"(isAUS || isPartnerDealNotesRequired)\"></textarea> </div> </div> </div> <div class=\"row\"> <div class=\"col-xs-12\"> <div class=\"pull-left has-error ng-hide\" ng-show=\"!newApplication.$valid &amp;&amp; !newApplication.$pristine\"> <p class=\"help-block ng-binding\"> Please fill out all the required fields before continuing with the submission </p> </div> <div class=\"pull-right managedUsers\"> <div class=\"pull-left\" ng-transclude=\"\"> <button class=\"btn btn-primary ng-binding ng-scope\" ng-disabled=\"vm.isDisabled\" analytics-on=\"\" analytics-event=\"Preapproval Button\" type=\"submit\">Continue</button> </div> <od-on-behalf-of-user class=\"pull-left ng-pristine ng-untouched ng-valid ng-isolate-scope\" ng-class=\"{'has-error':newApplication['contactId'].$invalid &amp;&amp; (newApplication['contactId'].$touched || newApplication.$submitted)}\" name=\"contactId\" ng-model=\"contactId\" prefix=\"as\"><label ng-show=\"showSelection\" class=\"ng-hide\"> <span class=\"managedUsers__prefix ng-binding ng-scope\" ng-if=\"prefix\"> as </span> <od-managed-users-select name=\"contactId\" ng-model=\"ngModel\" managed-user-choices=\"managedUserChoices\" show-selection=\"showSelection\" current-user=\"currentUser\" set-default-user=\"setDefaultUser\" class=\"ng-pristine ng-untouched ng-valid ng-isolate-scope\"><select class=\"form-control ng-pristine ng-untouched ng-valid ng-hide ng-valid-required\" ng-options=\"user.id as (user.firstName + ' ' + user.lastName) for user in managedUserChoices\" ng-required=\"managedUserChoices.length &gt; 0\" ng-show=\"showSelection\" ng-model=\"ngModel\"><option ng-show=\"!setDefaultUser\" value=\"\" class=\"ng-hide\">Filter by user</option></select> </od-managed-users-select> <span class=\"managedUsers__helpIcon\" tooltip=\"This submission will be attributed to this user\" tooltip-placement=\"left\" tooltip-class=\"application\"> <i class=\"fa fa-question-circle\"></i> </span> </label> </od-on-behalf-of-user> </div> </div> </div> <div class=\"row\"> <div class=\"col-xs-12\"> <p class=\"consent ng-binding\"></p> </div> </div> </form> </div> </od-application-form> </ui-view> </div> </div> <od-state-loading class=\"ng-isolate-scope\"><div class=\"stateLoading ng-hide\" ng-show=\"isActive\"> <i class=\"fa fa-spin fa-spinner\"></i> </div> </od-state-loading> </div> <od-footer class=\"ng-isolate-scope\"><div class=\"footer\"> <div class=\"footer__main ng-scope\" ng-include=\"vm.templateBasedOnExperience\"><ul class=\"footer__list ng-scope\"> <li class=\"footer__listItem footer__icon--phone ng-binding\"> 1.888.727.5449 </li> <li class=\"footer__listItem footer__listItem__email footer__icon--mail\" ng-show=\"vm.supportEmail\"> <a href=\"mailto:partnersupport@ondeck.com?subject=Partner Request\" target=\"\" class=\"footer__link ng-binding\">partnersupport@ondeck.com</a> </li> </ul> </div> <div class=\"footer__bottom\"> <ul class=\"footer__bottomList textCenter\"> <li class=\"footer__bottomListItem textLeft\"> Loans subject to lender approval. </li> <li class=\"footer__bottomListItem textLeft\"> OnDeck® is a registered trademark. </li> <li class=\"footer__bottomListItem textLeft\"> All rights reserved. </li> <li class=\"clearfix visible-sm-block\"></li> <li class=\"footer__bottomListItem ng-scope\" ng-if=\"vm.showFooter\"> <a href=\"https://www.ondeck.com\" target=\"\" class=\"footer__bottomLink ng-binding\">OnDeck Home</a> </li> <li class=\"footer__bottomListItem\"> <a href=\"#/privacy\" ui-sref=\"privacy\" class=\"footer__bottomLink ng-binding\">Privacy Policy</a> </li> <li class=\"footer__bottomListItem\"> <a href=\"#/privacy#11\" ui-sref=\"privacy#11\" class=\"footer__bottomLink ng-binding\">California Collection Notice</a> </li> <li class=\"footer__bottomListItem ng-scope\" ng-if=\"vm.showFooter\"> <a href=\"https://www.ondeck.com/security-policy\" target=\"\" class=\"footer__bottomLink ng-binding\">Security Policy</a> </li> <li class=\"footer__bottomListItem ng-scope\" ng-if=\"vm.showFooter\"> <a href=\"https://www.ondeck.com/faqs\" target=\"\" class=\"footer__bottomLink ng-binding\">FAQs</a> </li> <li class=\"footer__bottomListItem ng-scope\" ng-if=\"vm.showFooter\"> <a href=\"footer.tou.link\" target=\"\" class=\"footer__bottomLink ng-binding\"></a> </li> <li class=\"footer__bottomListItem ng-scope\" ng-if=\"vm.showFooter\"> <a href=\"footer.privacy.statement.link\" target=\"\" class=\"footer__bottomLink ng-binding\"></a> </li> <li class=\"footer__bottomListItem \"> <a href=\"\" ng-style=\"{ display: 'block'}\" class=\"footer__bottomLink ng-binding\" onclick=\"Osano.cm.showDrawer('osano-cm-dom-info-dialog-open')\" style=\"display: block;\"> Do Not Sell or Share My Personal Information </a> </li> </ul> </div> </div> </od-footer> <od-toast class=\"ng-isolate-scope\"><div class=\"toast alert\" ng-class=\"{ 'active': state.isActive }\"> <div class=\"toast__body\"> <span class=\"toast__close\" ng-click=\"closeToast()\"><i class=\"fa fa-times\"></i></span> <p class=\"ng-binding\"> </p> </div> </div> </od-toast> "
+}

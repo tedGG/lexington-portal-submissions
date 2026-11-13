@@ -92,10 +92,11 @@ app.post('/inspect/ondeck', requireApiKey, (_req, res) => {
 
 app.get('/inspect/ondeck/screenshot', requireApiKey, async (req, res) => {
   try {
-    if (req.query.fields === 'true') return res.json(await ondeck.inspect());
-    const { png, outcome } = await ondeck.screenshot();
+    const fill = req.query.fill === 'true';
+    if (req.query.fields === 'true') return res.json(await ondeck.inspect({ fill }));
+    const { png, outcome } = await ondeck.screenshot({ fill });
     res.set('Content-Type', 'image/png');
-    res.set('X-OnDeck-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 300));
+    res.set('X-OnDeck-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 2000));
     res.send(png);
   } catch (err) {
     console.error('ondeck screenshot failed:', err);

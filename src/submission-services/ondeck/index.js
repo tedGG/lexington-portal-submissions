@@ -4,6 +4,7 @@ chromium.use(StealthPlugin());
 
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { installWriteGuard } = require('./guard');
+const { fillApplicationForm, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
 
 const { ONDECK_URL, ONDECK_USERNAME, ONDECK_PASSWORD } = process.env;
 
@@ -114,6 +115,26 @@ async function loginAndOpenForm(page, context) {
   return { guard, form };
 }
 
+function hasValues(contact) {
+  return Boolean(contact) && Object.values(contact).some(value => value !== null && value !== undefined && value !== '');
+}
+
+async function populate(page, businessData, contact1Data, contact2Data) {
+  const demo = businessData?.demo === true;
+  const data = demo ? TEST_DATA : businessData;
+  const owners = demo ? [TEST_CONTACT, TEST_CONTACT_2] : [contact1Data, contact2Data].filter(hasValues);
+  console.log(`Populating the New App form${demo ? ' with TEST data' : ''} — ${owners.length} owner(s)`);
+  return fillApplicationForm(page, data, owners);
+}
+
+function summarise(fill) {
+  const parts = [`${fill.filled.length} fields filled`];
+  if (fill.skipped.length) parts.push(`${fill.skipped.length} skipped (no value)`);
+  if (fill.problems.length) parts.push(`${fill.problems.length} problem(s): ${fill.problems.join('; ')}`);
+  if (fill.invalidFields.length) parts.push(`portal still marks invalid: ${fill.invalidFields.join(', ')}`);
+  return parts.join(' — ');
+}
+
 async function uploadToSalesforce(page, recordId, title, sandbox = false) {
   if (!recordId) {
     console.log('No submissionId in payload, skipping screenshot upload');
@@ -131,7 +152,7 @@ async function uploadToSalesforce(page, recordId, title, sandbox = false) {
   }
 }
 
-async function submitLoan(businessData) {
+async function submitLoan(businessData, contact1Data, contact2Data) {
   assertConfigured();
 
   const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
@@ -143,20 +164,20 @@ async function submitLoan(businessData) {
   let page;
   try {
     page = await context.newPage();
-    const { guard, form } = await loginAndOpenForm(page, context);
+    const { guard } = await loginAndOpenForm(page, context);
+    const fill = await populate(page, businessData, contact1Data, contact2Data);
 
     const screenshot = await uploadToSalesforce(
       page,
       recordId,
-      `OnDeck - New App form opened (nothing filled) - ${businessData?.businessName || 'Demo'}`,
+      `OnDeck - Form populated (not submitted) - ${businessData?.businessName || 'Demo'}`,
       sandbox
     );
 
     return {
       success: true,
-      message: `Logged in and New App form opened (${form.fieldCount} fields visible) — nothing filled, nothing saved, NOT submitted.`,
-      formUrl: form.url,
-      formFields: form.fieldCount,
+      message: `New App form populated — ${summarise(fill)}. Continue was NOT clicked, nothing saved, NOT submitted.`,
+      fill,
       blockedRequests: guard.blocked,
       submitted: false,
       screenshot,
@@ -234,21 +255,23 @@ async function dumpFields(page) {
   });
 }
 
-async function inspect() {
+async function inspect({ fill = false } = {}) {
   assertConfigured();
   const { browser, context } = await launch();
 
   try {
     const page = await context.newPage();
     const { guard, form } = await loginAndOpenForm(page, context);
+    const fillReport = fill ? await populate(page, { demo: true }) : undefined;
     const dump = await dumpFields(page);
-    console.log(`Dumped ${dump.fields.length} fields and ${dump.buttons.length} buttons — nothing was clicked or filled.`);
+    console.log(`Dumped ${dump.fields.length} fields and ${dump.buttons.length} buttons — Continue was not clicked.`);
 
     return {
       success: true,
       url: form.url,
       title: await page.title(),
       labels: form.labels,
+      fill: fillReport,
       blockedRequests: guard.blocked,
       ...dump,
     };
@@ -257,7 +280,7 @@ async function inspect() {
   }
 }
 
-async function screenshot() {
+async function screenshot({ fill = false } = {}) {
   assertConfigured();
   const { browser, context } = await launch();
 
@@ -265,7 +288,12 @@ async function screenshot() {
     const page = await context.newPage();
     let outcome = 'form-open';
     try {
-      await loginAndOpenForm(page, context);
+      const { guard } = await loginAndOpenForm(page, context);
+      if (fill) {
+        const fillReport = await populate(page, { demo: true });
+        const blocked = guard.blocked.length ? ` — blocked requests: ${guard.blocked.join(', ')}` : '';
+        outcome = `form-filled: ${summarise(fillReport)}${blocked}`;
+      }
     } catch (err) {
       outcome = `failed: ${err.message.split('\n')[0]}`;
       console.log(`OnDeck screenshot — capturing the page as-is after: ${err.message}`);
