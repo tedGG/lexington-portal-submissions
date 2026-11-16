@@ -139,6 +139,25 @@ async function updateRecord(recordId, fields, sandbox = false) {
   return objectName;
 }
 
+const describeCache = { production: new Map(), sandbox: new Map() };
+
+async function describeObject(objectName, sandbox = false) {
+  const cache = describeCache[sandbox ? 'sandbox' : 'production'];
+  if (!cache.has(objectName)) {
+    cache.set(objectName, await sfRequest('GET', `/services/data/v59.0/sobjects/${objectName}/describe`, undefined, sandbox));
+  }
+  return cache.get(objectName);
+}
+
+async function getRecord(objectName, recordId, fieldNames, sandbox = false) {
+  const query = fieldNames.length ? `?fields=${fieldNames.map(encodeURIComponent).join(',')}` : '';
+  return sfRequest('GET', `/services/data/v59.0/sobjects/${objectName}/${recordId}${query}`, undefined, sandbox);
+}
+
+async function createRecord(objectName, fields, sandbox = false) {
+  return sfRequest('POST', `/services/data/v59.0/sobjects/${objectName}`, fields, sandbox);
+}
+
 function fetchFile(url, accessToken) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
@@ -225,4 +244,4 @@ async function uploadScreenshot(base64Data, title, recordId, sandbox = false) {
   });
 }
 
-module.exports = { downloadContentVersion, uploadScreenshot, updateRecord, isScreenshotUploadEnabled };
+module.exports = { downloadContentVersion, uploadScreenshot, updateRecord, isScreenshotUploadEnabled, objectNameForId, describeObject, getRecord, createRecord };

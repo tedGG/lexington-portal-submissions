@@ -5,6 +5,9 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { installWriteGuard } = require('./guard');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
+const { confirmOnDeckSubmit } = require('./decision');
+const { createDeclinedOffer } = require('./offer');
+const { maybeSubmit, isSubmitAllowed, SUBMIT_ENV_VAR } = require('../../helpers/portalSubmit');
 
 const { ONDECK_URL, ONDECK_USERNAME, ONDECK_PASSWORD } = process.env;
 
@@ -16,6 +19,8 @@ const LOGIN_ERROR = '.alert.alert-danger:visible';
 const NEW_APP_LINK = 'a.hdr2__subMenuItemLink[href="#/application/"]:visible';
 const FORM_HEADING = 'Business Information';
 const FIRST_FIELD_LABEL = 'Exact Legal Company Name';
+const CONTINUE_BUTTON = 'form[name="newApplication"] button[type="submit"]';
+const ONDECK_SUBMIT_ENV_VAR = 'ONDECK_ALLOW_SUBMIT';
 
 function assertConfigured() {
   if (!ONDECK_URL) throw new Error('ONDECK_URL is not set');
@@ -135,6 +140,65 @@ function summarise(fill) {
   return parts.join(' — ');
 }
 
+function isOnDeckSubmitAllowed() {
+  const value = process.env[ONDECK_SUBMIT_ENV_VAR];
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
+function submitBlockReason(sandbox, demo) {
+  if (demo) return 'demo payload';
+  if (sandbox) return 'sandbox payload';
+  if (!isSubmitAllowed()) return `${SUBMIT_ENV_VAR} is not "true"`;
+  if (!isOnDeckSubmitAllowed()) return `${ONDECK_SUBMIT_ENV_VAR} is not "true"`;
+  return null;
+}
+
+function assertReadyToSubmit(fill) {
+  const issues = [...fill.problems];
+  if (fill.invalidFields.length) issues.push(`portal marks invalid: ${fill.invalidFields.join(', ')}`);
+  if (!fill.formValid) issues.push('the portal does not consider the form complete');
+  if (issues.length) {
+    throw new Error(`OnDeck: Continue NOT clicked — the form is not ready: ${[...new Set(issues)].join('; ')}`);
+  }
+}
+
+function declineNotes(decision) {
+  if (decision.reasons.length) return decision.reasons.join('\n');
+  return decision.banner || `Declined (stage: ${decision.stage || 'unknown'})`;
+}
+
+function opportunityIdOf(businessData, recordId) {
+  const id = businessData?.opportunityId;
+  return id && id !== recordId ? id : null;
+}
+
+async function recordDecline(recordId, opportunityId, decision, sandbox) {
+  if (!decision?.declined) return null;
+  if (!recordId) {
+    console.log('OnDeck declined the application, but there is no submissionId — no offer created');
+    return { created: false, reason: 'no submissionId' };
+  }
+  try {
+    return { created: true, ...(await createDeclinedOffer(recordId, declineNotes(decision), { opportunityId, sandbox })) };
+  } catch (err) {
+    const reason = err.message.split('\n')[0];
+    console.log(`Declined offer could not be created in Salesforce: ${reason}`);
+    return { created: false, reason };
+  }
+}
+
+function describeOutcome(fill, submission, decision, offer) {
+  if (!submission.submitted) {
+    return `New App form populated — ${summarise(fill)}. Continue was NOT clicked (${submission.blockedBy}), NOT submitted.`;
+  }
+  const parts = [`Application SUBMITTED to OnDeck (Continue clicked) — ${submission.submitVerified ? 'confirmed' : 'NOT confirmed'}`];
+  if (decision?.stage) parts.push(`stage "${decision.stage}"`);
+  if (decision?.declined) parts.push(`declined: ${declineNotes(decision).replace(/\n/g, '; ')}`);
+  if (offer?.created) parts.push(`Declined offer ${offer.id} created`);
+  if (offer && !offer.created) parts.push(`Declined offer NOT created: ${offer.reason}`);
+  return `${parts.join(' — ')}.`;
+}
+
 async function uploadToSalesforce(page, recordId, title, sandbox = false) {
   if (!recordId) {
     console.log('No submissionId in payload, skipping screenshot upload');
@@ -157,7 +221,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
 
   const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
   const sandbox = isSandbox(businessData);
-  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used');
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be submitted');
 
   const { browser, context } = await launch();
 
@@ -167,19 +231,48 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
     const { guard } = await loginAndOpenForm(page, context);
     const fill = await populate(page, businessData, contact1Data, contact2Data);
 
+    const blockedBy = submitBlockReason(sandbox, businessData?.demo === true);
+    let submission = { submitted: false, submitVerified: false, confirmation: null, blockedBy };
+    let decision = null;
+
+    if (blockedBy) {
+      console.log(`OnDeck: submit step SKIPPED (${blockedBy}) — Continue was not clicked`);
+    } else {
+      assertReadyToSubmit(fill);
+      await uploadToSalesforce(page, recordId, `OnDeck - Form populated (before submit) - ${businessData?.businessName || 'Demo'}`, sandbox);
+      guard.allowWrites();
+      const holder = {};
+      submission = await maybeSubmit(page.locator(CONTINUE_BUTTON), page, {
+        lender: 'OnDeck',
+        buttonLabel: 'Continue',
+        confirm: confirmOnDeckSubmit(holder),
+        sandbox,
+      });
+      decision = holder.decision || null;
+    }
+
+    const offer = submission.submitted ? await recordDecline(recordId, opportunityIdOf(businessData, recordId), decision, sandbox) : null;
+
     const screenshot = await uploadToSalesforce(
       page,
       recordId,
-      `OnDeck - Form populated (not submitted) - ${businessData?.businessName || 'Demo'}`,
+      submission.submitted
+        ? `OnDeck - Final - after submit${decision?.stage ? ` (${decision.stage})` : ''} - ${businessData?.businessName || 'Demo'}`
+        : `OnDeck - Form populated (not submitted) - ${businessData?.businessName || 'Demo'}`,
       sandbox
     );
 
     return {
       success: true,
-      message: `New App form populated — ${summarise(fill)}. Continue was NOT clicked, nothing saved, NOT submitted.`,
+      message: describeOutcome(fill, submission, decision, offer),
+      applicationUrl: submission.submitted ? decision?.url || page.url() : undefined,
       fill,
+      decision,
+      offer,
       blockedRequests: guard.blocked,
-      submitted: false,
+      submitted: submission.submitted,
+      submitVerified: submission.submitVerified,
+      submitConfirmation: submission.confirmation,
       screenshot,
     };
   } catch (err) {

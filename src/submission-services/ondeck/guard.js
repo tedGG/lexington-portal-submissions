@@ -6,11 +6,12 @@ function isOnDeckHost(hostname) {
 
 async function installWriteGuard(context) {
   const blocked = [];
+  let open = false;
 
   await context.route(url => isOnDeckHost(url.hostname), route => {
     const request = route.request();
     const method = request.method();
-    if (SAFE_METHODS.has(method)) return route.continue();
+    if (open || SAFE_METHODS.has(method)) return route.continue();
 
     const entry = `${method} ${new URL(request.url()).pathname}`;
     blocked.push(entry);
@@ -19,7 +20,14 @@ async function installWriteGuard(context) {
   });
 
   console.log('OnDeck write guard active — every non-GET request to ondeck.com is blocked from here on');
-  return { blocked };
+
+  return {
+    blocked,
+    allowWrites: () => {
+      open = true;
+      console.log('OnDeck write guard lifted — this run is allowed to submit');
+    },
+  };
 }
 
 module.exports = { installWriteGuard };
