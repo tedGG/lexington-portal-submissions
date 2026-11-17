@@ -61,20 +61,50 @@ function isOnDeckUrl(url) {
   }
 }
 
+const SENSITIVE_KEY = /ssn|social|genericid|taxid|tin\b|ein\b|dateofbirth|dob|birth|password|account(number)?$|routing/i;
+
+function maskSensitive(value, key = '') {
+  if (Array.isArray(value)) return value.map(item => maskSensitive(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskSensitive(v, k)]));
+  }
+  if (value === null || value === undefined || value === '') return value;
+  if (SENSITIVE_KEY.test(key)) return '***';
+  if (typeof value === 'string' && /^\d{3}-?\d{2}-?\d{4}$/.test(value)) return '***';
+  return value;
+}
+
+function describeBody(text) {
+  if (!text) return '(empty)';
+  try {
+    return JSON.stringify(maskSensitive(JSON.parse(text)));
+  } catch {
+    return text.replace(/\b\d{3}-?\d{2}-?\d{4}\b/g, '***');
+  }
+}
+
 function watchActivity(page) {
   const writes = [];
   const failures = [];
   const errors = [];
+  const details = [];
 
   const onRequest = request => {
     if (request.method() !== 'GET' && isOnDeckUrl(request.url())) {
       writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
     }
   };
-  const onResponse = response => {
-    if (response.status() >= 400 && isOnDeckUrl(response.url())) {
-      failures.push(`HTTP ${response.status()} ${response.request().method()} ${new URL(response.url()).pathname}`);
-    }
+  const onResponse = async response => {
+    if (response.status() < 400 || !isOnDeckUrl(response.url())) return;
+    const request = response.request();
+    const label = `HTTP ${response.status()} ${request.method()} ${new URL(response.url()).pathname}`;
+    failures.push(label);
+    const responseBody = describeBody(await response.text().catch(() => '')).slice(0, 1_500);
+    const requestBody = describeBody(request.postData() || '').slice(0, 6_000);
+    details.push(`${label} — response: ${responseBody} — request (sensitive values masked): ${requestBody}`);
+    console.log(`OnDeck rejected ${label}`);
+    console.log(`OnDeck response body: ${responseBody}`);
+    console.log(`OnDeck request body (sensitive values masked): ${requestBody}`);
   };
   const onFailed = request => {
     if (isOnDeckUrl(request.url())) failures.push(`${request.method()} ${new URL(request.url()).pathname} — ${request.failure()?.errorText || 'failed'}`);
@@ -94,6 +124,7 @@ function watchActivity(page) {
     writes,
     failures,
     errors,
+    details,
     summary: () => [
       `requests sent: ${writes.length ? [...new Set(writes)].join(', ') : 'none'}`,
       failures.length ? `failed: ${[...new Set(failures)].join(', ')}` : null,
@@ -123,6 +154,7 @@ async function waitForDecision(page, activity) {
 
     if (state.stage) break;
     if (!state.processing && state.requiredError && Date.now() - startedAt > 10_000) break;
+    if (!state.processing && activity?.failures.length && /error/i.test(state.banner)) break;
     if (!sawProcessing && state.onForm && !activity?.writes.length && Date.now() - startedAt > NO_EFFECT_MS) {
       noEffect = true;
       break;

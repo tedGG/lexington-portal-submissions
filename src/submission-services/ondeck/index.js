@@ -263,6 +263,10 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
         activity.stop();
       }
       decision = holder.decision || null;
+
+      if (submission.submitted && !submission.submitVerified && activity.failures.length) {
+        throw new Error(`OnDeck rejected the application — ${submission.confirmation}`);
+      }
     }
 
     const offer = submission.submitted ? await recordDecline(recordId, opportunityIdOf(businessData, recordId), decision, sandbox) : null;
