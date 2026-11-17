@@ -4,56 +4,43 @@ const POLL_MS = 2_000;
 async function readPage(page) {
   return page.evaluate(() => {
     const clean = text => (text || '').replace(/\s+/g, ' ').trim();
-    const visible = el => el && el.offsetParent !== null;
-    const text = document.body.innerText || '';
+    const visible = el => Boolean(el) && el.offsetParent !== null;
+    const labelled = (prefix) => {
+      const span = [...document.querySelectorAll('span')]
+        .find(el => visible(el) && el.querySelector('strong') && clean(el.innerText).startsWith(prefix));
+      return span ? clean(span.querySelector('strong').innerText) : '';
+    };
 
-    const stageMatch = text.match(/(?:^|\n)\s*Stage\s+([^\n]{2,60})/);
-    const stage = stageMatch ? clean(stageMatch[1]) : '';
-
-    const heading = [...document.querySelectorAll('h1, h2, h3, h4, h5, h6, strong, b, p, div, span, label')]
+    const heading = [...document.querySelectorAll('h1, h2, h3, h4, h5, h6')]
       .find(el => visible(el) && /^decline reasons?:?$/i.test(clean(el.innerText)));
+    const reasonsPanel = heading ? heading.closest('.panel-body') || heading.parentElement : null;
+    const reasons = reasonsPanel
+      ? [...reasonsPanel.querySelectorAll('li')].filter(visible).map(li => clean(li.innerText)).filter(Boolean)
+      : [];
 
-    let reasons = [];
-    if (heading) {
-      let container = heading.parentElement;
-      for (let depth = 0; container && depth < 5 && !reasons.length; depth += 1) {
-        reasons = [...container.querySelectorAll('li')].filter(visible).map(li => clean(li.innerText)).filter(Boolean);
-        container = container.parentElement;
-      }
-    }
-    if (!reasons.length) {
-      const after = text.split(/\n\s*Decline Reasons?:?\s*\n/i)[1];
-      if (after) {
-        reasons = after.split('\n')
-          .map(line => clean(line.replace(/^[•\-*]\s*/, '')))
-          .filter(Boolean)
-          .slice(0, 10);
-      }
-    }
-
-    const banner = [...document.querySelectorAll('.alert, [role="alert"], .banner, .panel-body, p, div')]
+    const banner = [...document.querySelectorAll('.alert')]
       .filter(visible)
       .map(el => clean(el.innerText))
-      .find(line => /unable to approve|declined|approved|congratulations/i.test(line) && line.length < 400) || '';
-
-    const processing = [...document.querySelectorAll('.loadingWithMessage')].some(visible);
+      .filter(Boolean)
+      .join(' ');
 
     const requiredError = [...document.querySelectorAll('.help-block')]
       .filter(visible)
       .map(el => clean(el.innerText))
       .find(line => /fill out all the required fields/i.test(line)) || '';
 
-    const title = clean(document.querySelector('h1, h2')?.innerText || '');
+    const statusHeading = document.querySelector('#application h4.text-info');
 
     return {
       url: window.location.href,
-      onForm: window.location.hash.startsWith('#/application') && Boolean(document.querySelector('form[name="newApplication"]')),
-      processing,
+      onForm: Boolean(document.querySelector('form[name="newApplication"]')),
+      processing: [...document.querySelectorAll('.loadingWithMessage')].some(visible),
       requiredError,
-      stage,
+      stage: labelled('Stage'),
+      applicationNumber: labelled('Application #'),
       reasons: [...new Set(reasons)],
       banner,
-      title,
+      businessName: visible(statusHeading) ? clean(statusHeading.innerText) : '',
     };
   });
 }
@@ -76,14 +63,14 @@ async function waitForDecision(page) {
     if (!state.processing && state.requiredError && Date.now() - startedAt > 10_000) break;
   }
 
-  if (state?.stage && state.reasons.length === 0 && /declin/i.test(state.stage)) {
-    await page.waitForTimeout(3_000);
+  for (let waited = 0; state?.stage && /declin/i.test(state.stage) && !state.reasons.length && waited < 15_000; waited += POLL_MS) {
+    await page.waitForTimeout(POLL_MS);
     state = await readPage(page).catch(() => state);
   }
 
   const seconds = ((Date.now() - startedAt) / 1000).toFixed(0);
-  console.log(`OnDeck decision after ${seconds}s — stage "${state?.stage || 'unknown'}"${state?.reasons?.length ? `, reasons: ${state.reasons.join(' | ')}` : ''}`);
-  return classify(state || { url: page.url(), onForm: true, processing: false, requiredError: '', stage: '', reasons: [], banner: '', title: '' });
+  console.log(`OnDeck decision after ${seconds}s — application #${state?.applicationNumber || '?'}, stage "${state?.stage || 'unknown'}"${state?.reasons?.length ? `, reasons: ${state.reasons.join(' | ')}` : ''}`);
+  return classify(state || { url: page.url(), onForm: true, processing: false, requiredError: '', stage: '', applicationNumber: '', reasons: [], banner: '', businessName: '' });
 }
 
 function confirmOnDeckSubmit(holder) {

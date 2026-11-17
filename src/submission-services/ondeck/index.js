@@ -184,6 +184,7 @@ function describeOutcome(fill, submission, decision, offer) {
     return `New App form populated — ${summarise(fill)}. Continue was NOT clicked (${submission.blockedBy}), NOT submitted.`;
   }
   const parts = [`Application SUBMITTED to OnDeck (Continue clicked) — ${submission.submitVerified ? 'confirmed' : 'NOT confirmed'}`];
+  if (decision?.applicationNumber) parts.push(`OnDeck application #${decision.applicationNumber}`);
   if (decision?.stage) parts.push(`stage "${decision.stage}"`);
   if (decision?.declined) parts.push(`declined: ${declineNotes(decision).replace(/\n/g, '; ')}`);
   if (offer?.created) parts.push(`Declined offer ${offer.id} created`);
