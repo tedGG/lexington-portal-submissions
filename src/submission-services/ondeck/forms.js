@@ -173,7 +173,7 @@ function byId(page, id) {
 }
 
 function createReport() {
-  return { filled: [], skipped: [], problems: [] };
+  return { filled: [], skipped: [], problems: [], selects: [] };
 }
 
 async function attempt(report, label, value, work) {
@@ -230,14 +230,60 @@ async function fillDigits(page, report, id, label, value) {
   });
 }
 
-async function chooseOption(page, report, id, label, optionLabel) {
-  await attempt(report, label, optionLabel, async () => {
-    const select = byId(page, id);
-    await select.selectOption({ label: optionLabel }, { timeout: ACTION_TIMEOUT });
-    const selected = await select.evaluate(el => el.options[el.selectedIndex]?.text.trim() || '');
-    if (selected !== optionLabel) return `"${selected}" is selected instead of "${optionLabel}"`;
-    return invalidReason(select);
+async function readSelect(select) {
+  return select.evaluate(el => {
+    const ngModel = window.angular ? window.angular.element(el).controller('ngModel') : null;
+    const errors = ngModel ? Object.keys(ngModel.$error || {}).filter(key => ngModel.$error[key]) : [];
+    return {
+      text: el.options[el.selectedIndex]?.text.trim() || '',
+      value: el.value,
+      invalid: el.classList.contains('ng-invalid'),
+      errors,
+      model: ngModel ? JSON.stringify(ngModel.$modelValue) : 'n/a',
+    };
   });
+}
+
+const SELECT_ATTEMPTS = 3;
+
+async function selectReliably(page, id, optionLabel) {
+  const select = byId(page, id);
+  await select.waitFor({ state: 'visible', timeout: ACTION_TIMEOUT });
+  await select.locator('option', { hasText: optionLabel }).first().waitFor({ state: 'attached', timeout: ACTION_TIMEOUT });
+
+  let state = null;
+  for (let attempt = 1; attempt <= SELECT_ATTEMPTS; attempt += 1) {
+    if (state?.text !== optionLabel) await select.selectOption({ label: optionLabel }, { timeout: ACTION_TIMEOUT });
+    await page.waitForTimeout(600 * attempt);
+    state = await readSelect(select);
+    if (state.text === optionLabel && !state.invalid) return null;
+  }
+
+  if (state.text !== optionLabel) return `"${state.text}" is selected instead of "${optionLabel}"`;
+  return `the portal marks the value as invalid (option value "${state.value}", model ${state.model}, errors: ${state.errors.join(', ') || 'none'})`;
+}
+
+async function chooseOption(page, report, id, label, optionLabel) {
+  if (!isBlank(optionLabel)) report.selects.push({ id, label, optionLabel });
+  await attempt(report, label, optionLabel, () => selectReliably(page, id, optionLabel));
+}
+
+async function recheckSelects(page, report) {
+  for (const { id, label, optionLabel } of report.selects) {
+    const state = await readSelect(byId(page, id)).catch(() => null);
+    if (!state || (state.text === optionLabel && !state.invalid)) continue;
+
+    console.log(`OnDeck: "${label}" changed after it was set (now "${state.text}", ${state.invalid ? 'invalid' : 'valid'}) — selecting it again`);
+    const problem = await selectReliably(page, id, optionLabel).catch(err => err.message.split('\n')[0]);
+    report.problems = report.problems.filter(entry => !entry.startsWith(`${label}:`));
+    report.filled = report.filled.filter(entry => entry !== label);
+    if (problem) {
+      report.problems.push(`${label}: ${problem}`);
+      console.log(`OnDeck field problem — ${label}: ${problem}`);
+    } else {
+      report.filled.push(label);
+    }
+  }
 }
 
 async function chooseYesNo(page, report, name, label, value) {
@@ -379,6 +425,8 @@ async function fillApplicationForm(page, data, owners) {
   await fillFinancial(page, report, data);
   await fillOwners(page, report, data, owners);
   await fillLoan(page, report, data);
+  await page.waitForTimeout(1_500);
+  await recheckSelects(page, report);
   await selectSubmitAs(page, report);
 
   const audit = await auditForm(page);
@@ -386,7 +434,8 @@ async function fillApplicationForm(page, data, owners) {
   if (report.skipped.length) console.log(`Skipped (no value in payload): ${report.skipped.join(', ')}`);
   if (audit.invalidFields.length) console.log(`Portal still marks as invalid: ${audit.invalidFields.join(', ')}`);
 
-  return { ...report, ...audit };
+  const { selects, ...result } = report;
+  return { ...result, ...audit };
 }
 
 module.exports = { fillApplicationForm, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2, SUBMIT_AS };
