@@ -134,8 +134,16 @@ async function objectNameForId(recordId, sandbox = false) {
 }
 
 async function updateRecord(recordId, fields, sandbox = false) {
+  const org = sandbox ? 'sandbox' : 'production';
   const objectName = await objectNameForId(recordId, sandbox);
-  await sfRequest('PATCH', `/services/data/v59.0/sobjects/${objectName}/${recordId}`, fields, sandbox);
+  try {
+    await sfRequest('PATCH', `/services/data/v59.0/sobjects/${objectName}/${recordId}`, fields, sandbox);
+  } catch (err) {
+    const hint = /INVALID_FIELD|NOT_FOUND|INVALID_CROSS_REFERENCE_KEY/.test(err.message)
+      ? ` — in the ${org} org, id ${recordId} is a ${objectName}, not a submission. Check that submissionId is the submission record${sandbox ? '' : ' and send "sandbox": true for sandbox records'}`
+      : '';
+    throw new Error(`${err.message}${hint}`);
+  }
   return objectName;
 }
 

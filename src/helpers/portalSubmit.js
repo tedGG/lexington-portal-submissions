@@ -64,7 +64,7 @@ async function clickSubmit(locator, page, { lender, buttonLabel, confirm, confir
 }
 
 async function maybeSubmit(locator, page, options) {
-  if (options.sandbox) {
+  if (options.sandbox && !options.allowSandboxSubmit) {
     console.log(`${options.lender}: submit step SKIPPED — sandbox payload, applications are never submitted from sandbox`);
     return { submitted: false, submitVerified: false, confirmation: 'skipped: sandbox' };
   }

@@ -42,6 +42,7 @@ function createLoanHandler(automator, lender) {
 
     const recordId = submissionId ?? businessData.salesforceRecordId ?? null;
     businessData.salesforceRecordId ??= recordId;
+    businessData.sandbox ??= req.body.sandbox;
     const jobId = randomUUID();
     const logs = [];
     const startedAt = new Date();

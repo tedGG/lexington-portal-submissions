@@ -145,9 +145,8 @@ function isOnDeckSubmitAllowed() {
   return typeof value === 'string' && value.trim().toLowerCase() === 'true';
 }
 
-function submitBlockReason(sandbox, demo) {
+function submitBlockReason(demo) {
   if (demo) return 'demo payload';
-  if (sandbox) return 'sandbox payload';
   if (!isSubmitAllowed()) return `${SUBMIT_ENV_VAR} is not "true"`;
   if (!isOnDeckSubmitAllowed()) return `${ONDECK_SUBMIT_ENV_VAR} is not "true"`;
   return null;
@@ -221,7 +220,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
 
   const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
   const sandbox = isSandbox(businessData);
-  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be submitted');
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used; OnDeck still submits when its submit switches are on');
 
   const { browser, context } = await launch();
 
@@ -231,7 +230,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
     const { guard } = await loginAndOpenForm(page, context);
     const fill = await populate(page, businessData, contact1Data, contact2Data);
 
-    const blockedBy = submitBlockReason(sandbox, businessData?.demo === true);
+    const blockedBy = submitBlockReason(businessData?.demo === true);
     let submission = { submitted: false, submitVerified: false, confirmation: null, blockedBy };
     let decision = null;
 
@@ -247,6 +246,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
         buttonLabel: 'Continue',
         confirm: confirmOnDeckSubmit(holder),
         sandbox,
+        allowSandboxSubmit: true,
       });
       decision = holder.decision || null;
     }
