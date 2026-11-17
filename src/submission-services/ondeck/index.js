@@ -139,8 +139,9 @@ function summarise(fill) {
   return parts.join(' — ');
 }
 
-function submitBlockReason(demo) {
+function submitBlockReason(demo, sandbox) {
   if (demo) return 'demo payload';
+  if (sandbox) return 'sandbox payload';
   if (!isSubmitAllowed()) return `${SUBMIT_ENV_VAR} is not "true"`;
   return null;
 }
@@ -225,7 +226,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
 
   const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
   const sandbox = isSandbox(businessData);
-  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used; OnDeck still submits when ALLOW_PORTAL_SUBMIT is "true"');
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used and the application will NOT be submitted');
 
   const { browser, context } = await launch();
 
@@ -235,7 +236,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
     const dialogState = { submitting: false, dialogs: [] };
     handleDialogs(page, dialogState);
 
-    const blockedBy = submitBlockReason(businessData?.demo === true);
+    const blockedBy = submitBlockReason(businessData?.demo === true, sandbox);
     const { guard } = await loginAndOpenForm(page, context);
     if (!blockedBy) guard.allowWrites();
     const fill = await populate(page, businessData, contact1Data, contact2Data);
@@ -257,7 +258,6 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
           buttonLabel: 'Continue',
           confirm: confirmOnDeckSubmit(holder, activity),
           sandbox,
-          allowSandboxSubmit: true,
         });
       } finally {
         activity.stop();
