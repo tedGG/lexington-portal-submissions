@@ -20,7 +20,6 @@ const NEW_APP_LINK = 'a.hdr2__subMenuItemLink[href="#/application/"]:visible';
 const FORM_HEADING = 'Business Information';
 const FIRST_FIELD_LABEL = 'Exact Legal Company Name';
 const CONTINUE_BUTTON = 'form[name="newApplication"] button[type="submit"]';
-const ONDECK_SUBMIT_ENV_VAR = 'ONDECK_ALLOW_SUBMIT';
 
 function assertConfigured() {
   if (!ONDECK_URL) throw new Error('ONDECK_URL is not set');
@@ -140,15 +139,9 @@ function summarise(fill) {
   return parts.join(' — ');
 }
 
-function isOnDeckSubmitAllowed() {
-  const value = process.env[ONDECK_SUBMIT_ENV_VAR];
-  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
-}
-
 function submitBlockReason(demo) {
   if (demo) return 'demo payload';
   if (!isSubmitAllowed()) return `${SUBMIT_ENV_VAR} is not "true"`;
-  if (!isOnDeckSubmitAllowed()) return `${ONDECK_SUBMIT_ENV_VAR} is not "true"`;
   return null;
 }
 
@@ -220,7 +213,7 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
 
   const recordId = businessData?.salesforceRecordId || businessData?.opportunityId || null;
   const sandbox = isSandbox(businessData);
-  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used; OnDeck still submits when its submit switches are on');
+  if (sandbox) console.log('SANDBOX payload — Salesforce sandbox credentials will be used; OnDeck still submits when ALLOW_PORTAL_SUBMIT is "true"');
 
   const { browser, context } = await launch();
 
