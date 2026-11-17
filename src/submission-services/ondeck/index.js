@@ -5,7 +5,7 @@ chromium.use(StealthPlugin());
 const { uploadScreenshot } = require('../../helpers/salesforce');
 const { installWriteGuard } = require('./guard');
 const { fillApplicationForm, TEST_DATA, TEST_CONTACT, TEST_CONTACT_2 } = require('./forms');
-const { confirmOnDeckSubmit } = require('./decision');
+const { confirmOnDeckSubmit, watchActivity } = require('./decision');
 const { createDeclinedOffer } = require('./offer');
 const { maybeSubmit, isSubmitAllowed, SUBMIT_ENV_VAR } = require('../../helpers/portalSubmit');
 
@@ -179,9 +179,10 @@ async function recordDecline(recordId, opportunityId, decision, sandbox) {
   }
 }
 
-function describeOutcome(fill, submission, decision, offer) {
+function describeOutcome(fill, submission, decision, offer, blockedRequests) {
   if (!submission.submitted) {
-    return `New App form populated — ${summarise(fill)}. Continue was NOT clicked (${submission.blockedBy}), NOT submitted.`;
+    const blocked = blockedRequests.length ? ` Write guard blocked: ${[...new Set(blockedRequests)].join(', ')}.` : '';
+    return `New App form populated — ${summarise(fill)}. Continue was NOT clicked (${submission.blockedBy}), NOT submitted.${blocked}`;
   }
   const parts = [`Application SUBMITTED to OnDeck (Continue clicked) — ${submission.submitVerified ? 'confirmed' : 'NOT confirmed'}`];
   if (decision?.applicationNumber) parts.push(`OnDeck application #${decision.applicationNumber}`);
@@ -190,6 +191,16 @@ function describeOutcome(fill, submission, decision, offer) {
   if (offer?.created) parts.push(`Declined offer ${offer.id} created`);
   if (offer && !offer.created) parts.push(`Declined offer NOT created: ${offer.reason}`);
   return `${parts.join(' — ')}.`;
+}
+
+function handleDialogs(page, state) {
+  page.on('dialog', async dialog => {
+    const entry = `${dialog.type()}: ${dialog.message().replace(/\s+/g, ' ').slice(0, 300)}`;
+    state.dialogs.push(entry);
+    const accept = state.submitting;
+    console.log(`OnDeck: browser dialog — ${entry} — ${accept ? 'accepted (submit step)' : 'dismissed'}`);
+    await (accept ? dialog.accept() : dialog.dismiss()).catch(() => {});
+  });
 }
 
 async function uploadToSalesforce(page, recordId, title, sandbox = false) {
@@ -221,10 +232,14 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
   let page;
   try {
     page = await context.newPage();
-    const { guard } = await loginAndOpenForm(page, context);
-    const fill = await populate(page, businessData, contact1Data, contact2Data);
+    const dialogState = { submitting: false, dialogs: [] };
+    handleDialogs(page, dialogState);
 
     const blockedBy = submitBlockReason(businessData?.demo === true);
+    const { guard } = await loginAndOpenForm(page, context);
+    if (!blockedBy) guard.allowWrites();
+    const fill = await populate(page, businessData, contact1Data, contact2Data);
+
     let submission = { submitted: false, submitVerified: false, confirmation: null, blockedBy };
     let decision = null;
 
@@ -233,15 +248,20 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
     } else {
       assertReadyToSubmit(fill);
       await uploadToSalesforce(page, recordId, `OnDeck - Form populated (before submit) - ${businessData?.businessName || 'Demo'}`, sandbox);
-      guard.allowWrites();
       const holder = {};
-      submission = await maybeSubmit(page.locator(CONTINUE_BUTTON), page, {
-        lender: 'OnDeck',
-        buttonLabel: 'Continue',
-        confirm: confirmOnDeckSubmit(holder),
-        sandbox,
-        allowSandboxSubmit: true,
-      });
+      const activity = watchActivity(page);
+      dialogState.submitting = true;
+      try {
+        submission = await maybeSubmit(page.locator(CONTINUE_BUTTON), page, {
+          lender: 'OnDeck',
+          buttonLabel: 'Continue',
+          confirm: confirmOnDeckSubmit(holder, activity),
+          sandbox,
+          allowSandboxSubmit: true,
+        });
+      } finally {
+        activity.stop();
+      }
       decision = holder.decision || null;
     }
 
@@ -258,12 +278,13 @@ async function submitLoan(businessData, contact1Data, contact2Data) {
 
     return {
       success: true,
-      message: describeOutcome(fill, submission, decision, offer),
+      message: describeOutcome(fill, submission, decision, offer, guard.blocked),
       applicationUrl: submission.submitted ? decision?.url || page.url() : undefined,
       fill,
       decision,
       offer,
       blockedRequests: guard.blocked,
+      dialogs: dialogState.dialogs,
       submitted: submission.submitted,
       submitVerified: submission.submitVerified,
       submitConfirmation: submission.confirmation,
