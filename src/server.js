@@ -7,6 +7,7 @@ const iou = require('./submission-services/iou');
 const ibusiness = require('./submission-services/ibusiness');
 const kudoFunding = require('./submission-services/kudo-funding');
 const ondeck = require('./submission-services/ondeck');
+const rapidFinance = require('./submission-services/rapid-finance');
 const { submitTestForm } = require('./test-automator');
 const { reportSubmission } = require('./helpers/submissionStatus');
 
@@ -101,6 +102,18 @@ app.get('/inspect/ondeck/screenshot', requireApiKey, async (req, res) => {
     res.send(png);
   } catch (err) {
     console.error('ondeck screenshot failed:', err);
+    res.status(500).json({ error: 'Screenshot failed', details: err.message });
+  }
+});
+
+app.get('/inspect/rapid-finance/screenshot', requireApiKey, async (_req, res) => {
+  try {
+    const { png, outcome } = await rapidFinance.screenshot();
+    res.set('Content-Type', 'image/png');
+    res.set('X-Rapid-Finance-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 2000));
+    res.send(png);
+  } catch (err) {
+    console.error('rapid finance screenshot failed:', err);
     res.status(500).json({ error: 'Screenshot failed', details: err.message });
   }
 });
