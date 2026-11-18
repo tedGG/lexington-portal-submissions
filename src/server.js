@@ -106,16 +106,30 @@ app.get('/inspect/ondeck/screenshot', requireApiKey, async (req, res) => {
   }
 });
 
-app.get('/inspect/rapid-finance/screenshot', requireApiKey, async (_req, res) => {
-  try {
-    const { png, outcome } = await rapidFinance.screenshot();
-    res.set('Content-Type', 'image/png');
-    res.set('X-Rapid-Finance-Result', outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 2000));
-    res.send(png);
-  } catch (err) {
-    console.error('rapid finance screenshot failed:', err);
-    res.status(500).json({ error: 'Screenshot failed', details: err.message });
-  }
+app.post('/inspect/rapid-finance', requireApiKey, (_req, res) => {
+  const jobId = randomUUID();
+  const logs = [];
+  jobs.set(jobId, { status: 'pending', logs });
+
+  jobLogStorage.run(logs, () => {
+    rapidFinance.screenshot()
+      .then(({ png, outcome }) => jobs.set(jobId, { status: 'done', result: { outcome, screenshotUrl: `/inspect/rapid-finance/screenshot/${jobId}` }, logs, png }))
+      .catch(err => {
+        console.error('rapid finance login check failed:', err);
+        jobs.set(jobId, { status: 'error', error: err.message, logs });
+      });
+  });
+
+  res.status(202).json({ jobId });
+});
+
+app.get('/inspect/rapid-finance/screenshot/:id', requireApiKey, (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.png) return res.status(409).json({ error: `No screenshot yet — job status is "${job.status}"`, details: job.error });
+  res.set('Content-Type', 'image/png');
+  res.set('X-Rapid-Finance-Result', job.result.outcome.replace(/[^\x20-\x7e]/g, ' ').slice(0, 2000));
+  res.send(job.png);
 });
 
 app.post('/inspect/iou', requireApiKey, (_req, res) => {
@@ -173,7 +187,8 @@ app.post('/inspect/iou/screenshot-sf', requireApiKey, (req, res) => {
 app.get('/job/:id', requireApiKey, (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  res.json(job);
+  const { png, ...rest } = job;
+  res.json(rest);
 });
 
 app.post('/test-submit', requireApiKey, async (req, res) => {
